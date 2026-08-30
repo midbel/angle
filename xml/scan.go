@@ -144,13 +144,33 @@ func (s *scanner) scanDefault(tok *Token) {
 	switch s.char {
 	case langle:
 		s.scanOpen(tok)
+	case ampersand:
+		s.scanReference(tok)
 	default:
 		s.scanText(tok)
 	}
 }
 
+func (s *scanner) scanReference(tok *Token) {
+	s.write()
+	s.advance()
+	for !s.done() && s.char != semicolon {
+		s.write()
+		s.advance()
+	}
+	tok.Type = TokReference
+	tok.Literal = s.literal()
+	if s.char != semicolon {
+		tok.Type = TokInvalid
+	} else {
+		s.write()
+		tok.Literal = s.literal()
+		s.advance()
+	}
+}
+
 func (s *scanner) scanText(tok *Token) {
-	for !s.done() && s.char != langle {
+	for !s.done() && (s.char != langle && s.char != ampersand) {
 		s.write()
 		s.advance()
 	}
@@ -158,15 +178,50 @@ func (s *scanner) scanText(tok *Token) {
 	tok.Literal = s.literal()
 }
 
+func (s *scanner) scanComment(tok *Token) {
+	s.advance()
+	if s.char != dash {
+		tok.Type = TokInvalid
+		return
+	}
+	s.advance()
+
+	var done bool
+	for !s.done() {
+		if s.char == dash && s.peek() == s.char {
+			s.advance()
+			s.advance()
+			if done = s.char == rangle; done {
+				break
+			}
+			s.writeRune(dash)
+			s.writeRune(dash)
+			continue
+		}
+		s.write()
+		s.advance()
+	}
+	tok.Type = TokComment
+	tok.Literal = s.literal()
+	if done {
+		s.advance()
+	} else {
+		tok.Type = TokInvalid
+	}
+}
+
 func (s *scanner) scanOpen(tok *Token) {
 	if k := s.peek(); k == question {
 		tok.Type = TokOpenPI
 		s.scan = s.scanPIName
 		s.advance()
-		// } else if k == slash {
-		// 	tok.Type = TokSlash
-		// 	s.scan = s.scanAfterSlash
-		// 	s.advance()
+	} else if k == bang {
+		s.advance()
+		s.advance()
+		if s.char == dash {
+			s.scanComment(tok)
+		}
+		return
 	} else {
 		tok.Type = TokOpenTag
 		s.scan = s.scanTag
@@ -348,7 +403,7 @@ const (
 	squote     = '\''
 	equal      = '='
 	bang       = '!'
-	minus      = '-'
+	dash       = '-'
 	space      = ' '
 	tab        = '\t'
 	nl         = '\n'
@@ -369,7 +424,7 @@ func isNameStart(r rune) bool {
 
 func isNameChar(r rune) bool {
 	return isLetter(r) || isDigit(r) ||
-		r == dot || r == colon || r == underscore || r == minus
+		r == dot || r == colon || r == underscore || r == dash
 }
 
 func isDigit(r rune) bool {

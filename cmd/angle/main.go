@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/midbel/angle/xml"
 	"github.com/midbel/cli"
 )
 
@@ -53,6 +54,20 @@ func (c scanCommand) Run(args []string) error {
 	}
 	if set.NArg() != 1 {
 		return cli.ErrUsage
+	}
+	r, err := os.Open(set.Arg(0))
+	if err != nil {
+		cli.FailIO(err)
+	}
+	defer r.Close()
+
+	for tok, err := range xml.Scan(r) {
+		if err != nil {
+			fmt.Fprintln(cli.Stderr, err)
+			return err
+		}
+		fmt.Fprintf(cli.Stdout, "%-6s | %12s | %s", tok.Position, tok.Type, tok.Literal)
+		fmt.Fprintln(cli.Stdout)
 	}
 	return nil
 }

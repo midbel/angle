@@ -4,10 +4,23 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"iter"
+	"unicode"
 )
 
-var ErrInput = errors.Input("bad data")
+var ErrInput = errors.New("bad data")
+
+type Position struct {
+	Line   int
+	Column int
+	Offset int
+}
+
+func (p Position) String() string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
 
 type Token struct {
 	Literal string
@@ -22,7 +35,8 @@ const (
 	TokCloseTag
 	TokSlash
 	TokName
-	TokPI
+	TokOpenPI
+	TokClosePI
 	TokComment
 	TokCDATA
 	TokDOCTYPE
@@ -30,12 +44,18 @@ const (
 	TokEqual
 	TokReference
 	TokText
+	TokInvalid
+	TokEof
 )
 
 func (t Type) String() string {
 	switch t {
 	default:
 		return "unknown"
+	case TokInvalid:
+		return "invalid"
+	case TokEof:
+		return "eof"
 	case TokOpenTag:
 		return "open-tag"
 	case TokCloseTag:
@@ -44,8 +64,10 @@ func (t Type) String() string {
 		return "slash"
 	case TokName:
 		return "name"
-	case TokPI:
-		return "pi"
+	case TokOpenPI:
+		return "open-pi"
+	case TokClosePI:
+		return "close-pi"
 	case TokComment:
 		return "comment"
 	case TokCDATA:
@@ -67,6 +89,7 @@ type scanner struct {
 	input *bufio.Reader
 	err   error
 	char  rune
+	scan  func(*Token)
 
 	buf *bytes.Buffer
 	Position
@@ -91,9 +114,10 @@ func createScanner(r io.Reader) *scanner {
 		input: input,
 		buf:   new(bytes.Buffer),
 	}
+	s.scan = s.scanDefault
 	s.Position.Line++
 	s.advance()
-	return s, nil
+	return s
 }
 
 func (s *scanner) Err() error {
@@ -106,29 +130,72 @@ func (s *scanner) Scan() Token {
 		tok.Type = TokInvalid
 		return tok
 	}
-	s.skipBlank()
 	if s.done() {
 		tok.Type = TokEof
 		return tok
 	}
 	defer s.reset()
+	s.scan(&tok)
+	return tok
+}
 
-	tok.Position = s.Position
-	switch {
-	case s.char == langle:
-	case s.char == rangle:
-	case s.char == slash:
-	case s.char == equal:
-	case isQuote(s.char):
+func (s *scanner) scanDefault(tok *Token) {
+	switch s.char {
+	case langle:
+		s.scanOpen(tok)
 	default:
 		tok.Type = TokInvalid
+	}
+}
+
+func (s *scanner) scanOpen(tok *Token) {
+	s.advance()
+	switch s.char {
+	case question:
+		tok.Type = TokOpenPI
+		s.scan = s.scanPIName
+	default:
+		tok.Type = TokInvalid
+	}
+	if tok.Type != TokInvalid {
+		s.advance()
+	}
+}
+
+func (s *scanner) scanPIName(tok *Token) {
+	for !s.done() && !isBlank(s.char) && s.char != question {
 		s.write()
+		s.advance()
 	}
-	if tok.Type == TokInvalid {
-		s.err = ErrInput
-		tok.Literal = s.literal()
+	tok.Type = TokName
+	tok.Literal = s.literal()
+	if s.done() {
+		tok.Type = TokInvalid
 	}
-	return tok
+	s.scan = s.scanPIData
+}
+
+func (s *scanner) scanPIData(tok *Token) {
+	for !s.done() && s.char != question && s.peek() != rangle {
+		s.write()
+		s.advance()
+	}
+	tok.Type = TokString
+	tok.Literal = s.literal()
+	if s.done() {
+		tok.Type = TokInvalid
+	}
+	s.scan = s.scanClosePI
+}
+
+func (s *scanner) scanClosePI(tok *Token) {
+	tok.Type = TokInvalid
+	if s.char == question && s.peek() == rangle {
+		tok.Type = TokClosePI
+		s.advance()
+		s.advance()
+	}
+	s.scan = s.scanDefault
 }
 
 func (s *scanner) advance() {
@@ -141,9 +208,11 @@ func (s *scanner) advance() {
 		s.char = 0
 		return
 	}
+	s.Offset++
 	s.char = c
 	if s.char == cr && s.peek() == nl {
 		s.char, _, _ = s.input.ReadRune()
+		s.Offset++
 	}
 
 	if isNL(s.char) {

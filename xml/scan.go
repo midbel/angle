@@ -59,7 +59,7 @@ func (t Type) String() string {
 	case TokOpenTag:
 		return "open-tag"
 	case TokCloseTag:
-		return "close-tab"
+		return "close-tag"
 	case TokSlash:
 		return "slash"
 	case TokName:
@@ -135,6 +135,7 @@ func (s *scanner) Scan() Token {
 		return tok
 	}
 	defer s.reset()
+	tok.Position = s.Position
 	s.scan(&tok)
 	return tok
 }
@@ -144,38 +145,42 @@ func (s *scanner) scanDefault(tok *Token) {
 	case langle:
 		s.scanOpen(tok)
 	default:
-		tok.Type = TokInvalid
+		s.scanText(tok)
 	}
 }
 
-func (s *scanner) scanOpen(tok *Token) {
-	s.advance()
-	switch s.char {
-	case question:
-		tok.Type = TokOpenPI
-		s.scan = s.scanPIName
-	default:
-		tok.Type = TokInvalid
-	}
-	if tok.Type != TokInvalid {
-		s.advance()
-	}
-}
-
-func (s *scanner) scanPIName(tok *Token) {
-	for !s.done() && !isBlank(s.char) && s.char != question {
+func (s *scanner) scanText(tok *Token) {
+	for !s.done() && s.char != langle {
 		s.write()
 		s.advance()
 	}
-	tok.Type = TokName
+	tok.Type = TokText
 	tok.Literal = s.literal()
-	if s.done() {
-		tok.Type = TokInvalid
+}
+
+func (s *scanner) scanOpen(tok *Token) {
+	if k := s.peek(); k == question {
+		tok.Type = TokOpenPI
+		s.scan = s.scanPIName
+		s.advance()
+		// } else if k == slash {
+		// 	tok.Type = TokSlash
+		// 	s.scan = s.scanAfterSlash
+		// 	s.advance()
+	} else {
+		tok.Type = TokOpenTag
+		s.scan = s.scanTag
 	}
+	s.advance()
+}
+
+func (s *scanner) scanPIName(tok *Token) {
+	s.scanName(tok)
 	s.scan = s.scanPIData
 }
 
 func (s *scanner) scanPIData(tok *Token) {
+	s.skipBlank()
 	for !s.done() && s.char != question && s.peek() != rangle {
 		s.write()
 		s.advance()
@@ -196,6 +201,78 @@ func (s *scanner) scanClosePI(tok *Token) {
 		s.advance()
 	}
 	s.scan = s.scanDefault
+}
+
+func (s *scanner) scanAfterSlash(tok *Token) {
+	switch {
+	case s.char == rangle:
+		tok.Type = TokCloseTag
+		s.scan = s.scanDefault
+		s.advance()
+	case isNameStart(s.char):
+		s.scanName(tok)
+		s.scan = s.scanTag
+	default:
+		tok.Type = TokInvalid
+	}
+}
+
+func (s *scanner) scanTag(tok *Token) {
+	s.skipBlank()
+	switch {
+	default:
+	case isNameStart(s.char):
+		s.scanName(tok)
+	case s.char == slash:
+		tok.Type = TokSlash
+		s.advance()
+		s.scan = s.scanAfterSlash
+	case s.char == rangle:
+		tok.Type = TokCloseTag
+		s.scan = s.scanDefault
+		s.advance()
+	case s.char == equal:
+		tok.Type = TokEqual
+		s.scan = s.scanString
+		s.advance()
+	}
+}
+
+func (s *scanner) scanName(tok *Token) {
+	if !isNameStart(s.char) {
+		tok.Type = TokInvalid
+		return
+	}
+	s.write()
+	s.advance()
+	for !s.done() && isNameChar(s.char) {
+		s.write()
+		s.advance()
+	}
+	tok.Type = TokName
+	tok.Literal = s.literal()
+	s.scan = s.scanTag
+}
+
+func (s *scanner) scanString(tok *Token) {
+	if !isQuote(s.char) {
+		tok.Type = TokInvalid
+		return
+	}
+	opening := s.char
+	s.advance()
+	for !s.done() && s.char != opening {
+		s.write()
+		s.advance()
+	}
+	tok.Type = TokString
+	tok.Literal = s.literal()
+	if s.char != opening {
+		tok.Type = TokInvalid
+	} else {
+		s.advance()
+		s.scan = s.scanTag
+	}
 }
 
 func (s *scanner) advance() {
@@ -251,25 +328,53 @@ func (s *scanner) literal() string {
 	return s.buf.String()
 }
 
+func (s *scanner) skipSpace() {
+	for isSpace(s.char) {
+		s.advance()
+	}
+}
+
+func (s *scanner) skipBlank() {
+	for isBlank(s.char) {
+		s.advance()
+	}
+}
+
 const (
-	langle    = '<'
-	rangle    = '>'
-	slash     = '/'
-	dquote    = '"'
-	squote    = '\''
-	equal     = '='
-	bang      = '!'
-	minus     = '-'
-	space     = ' '
-	tab       = '\t'
-	nl        = '\n'
-	cr        = '\r'
-	question  = '?'
-	lsquare   = '['
-	rsquare   = ']'
-	ampersand = '&'
-	semicolon = ';'
+	langle     = '<'
+	rangle     = '>'
+	slash      = '/'
+	dquote     = '"'
+	squote     = '\''
+	equal      = '='
+	bang       = '!'
+	minus      = '-'
+	space      = ' '
+	tab        = '\t'
+	nl         = '\n'
+	cr         = '\r'
+	question   = '?'
+	lsquare    = '['
+	rsquare    = ']'
+	ampersand  = '&'
+	semicolon  = ';'
+	colon      = ':'
+	underscore = '_'
+	dot        = '.'
 )
+
+func isNameStart(r rune) bool {
+	return isLetter(r) || r == colon || r == underscore
+}
+
+func isNameChar(r rune) bool {
+	return isLetter(r) || isDigit(r) ||
+		r == dot || r == colon || r == underscore || r == minus
+}
+
+func isDigit(r rune) bool {
+	return unicode.IsDigit(r)
+}
 
 func isLetter(r rune) bool {
 	return unicode.IsLetter(r)

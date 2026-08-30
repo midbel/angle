@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/midbel/angle/xml"
@@ -62,12 +63,15 @@ func (c scanCommand) Run(args []string) error {
 	defer r.Close()
 
 	for tok, err := range xml.Scan(r) {
-		if err != nil {
+		fmt.Fprintf(cli.Stdout, "%-6s | %12s | %s", tok.Position, tok.Type, tok.Literal)
+		fmt.Fprintln(cli.Stdout)
+		if err != nil && !errors.Is(err, io.EOF) {
 			fmt.Fprintln(cli.Stderr, err)
 			return err
 		}
-		fmt.Fprintf(cli.Stdout, "%-6s | %12s | %s", tok.Position, tok.Type, tok.Literal)
-		fmt.Fprintln(cli.Stdout)
+		if tok.Type == xml.TokInvalid || tok.Type == xml.TokEof {
+			break
+		}
 	}
 	return nil
 }

@@ -154,18 +154,46 @@ func (s *scanner) scanDefault(tok *Token) {
 func (s *scanner) scanReference(tok *Token) {
 	s.write()
 	s.advance()
-	for !s.done() && s.char != semicolon {
+
+	var (
+		accept func(rune) bool
+		count  int
+	)
+	if s.char == pound {
+		accept = isDigit
+
+		s.write()
+		s.advance()
+		if s.char == 'x' {
+			accept = isHexa
+
+			s.write()
+			s.advance()
+		}
+	} else if isNameStart(s.char) {
+		accept = isNameChar
+
+		s.write()
+		s.advance()
+	} else {
+		tok.Type = TokInvalid
+		return
+	}
+	for !s.done() && accept(s.char) && s.char != semicolon {
+		count++
 		s.write()
 		s.advance()
 	}
 	tok.Type = TokReference
-	tok.Literal = s.literal()
 	if s.char != semicolon {
 		tok.Type = TokInvalid
 	} else {
 		s.write()
 		tok.Literal = s.literal()
 		s.advance()
+		if count < 1 {
+			tok.Type = TokInvalid
+		}
 	}
 }
 
@@ -176,6 +204,42 @@ func (s *scanner) scanText(tok *Token) {
 	}
 	tok.Type = TokText
 	tok.Literal = s.literal()
+}
+
+func (s *scanner) scanCData(tok *Token) {
+	s.advance()
+	s.reset()
+	for !s.done() && s.char != lsquare {
+		s.write()
+		s.advance()
+	}
+	if s.literal() != "CDATA" {
+		tok.Type = TokInvalid
+		return
+	}
+	s.advance()
+	s.reset()
+	var done bool
+	for !s.done() {
+		if s.char == rsquare && s.peek() == s.char {
+			s.advance()
+			s.advance()
+			if done = s.char == rangle; done {
+				s.advance()
+				break
+			}
+			s.writeRune(rsquare)
+			s.writeRune(rsquare)
+			continue
+		}
+		s.write()
+		s.advance()
+	}
+	tok.Literal = s.literal()
+	tok.Type = TokCDATA
+	if !done {
+		tok.Type = TokInvalid
+	}
 }
 
 func (s *scanner) scanComment(tok *Token) {
@@ -220,6 +284,8 @@ func (s *scanner) scanOpen(tok *Token) {
 		s.advance()
 		if s.char == dash {
 			s.scanComment(tok)
+		} else if s.char == lsquare {
+			s.scanCData(tok)
 		}
 		return
 	} else {
@@ -416,15 +482,23 @@ const (
 	colon      = ':'
 	underscore = '_'
 	dot        = '.'
+	pound      = '#'
 )
 
 func isNameStart(r rune) bool {
-	return isLetter(r) || r == colon || r == underscore
+	return (r >= 'A' && r <= 'Z') ||
+		(r >= 'a' && r <= 'z') ||
+		r == colon || r == underscore
 }
 
 func isNameChar(r rune) bool {
-	return isLetter(r) || isDigit(r) ||
-		r == dot || r == colon || r == underscore || r == dash
+	return isNameStart(r) || r == dot || r == dash
+}
+
+func isHexa(r rune) bool {
+	return (r >= '0' && r <= '9') ||
+		(r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'F')
 }
 
 func isDigit(r rune) bool {

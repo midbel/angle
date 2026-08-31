@@ -40,16 +40,17 @@ func main() {
 }
 
 var scanCmd = cli.Command{
-	Name:    "scan",
+	Name:    "tokenize",
+	Alias:   []string{"scan", "lex"},
 	Summary: "",
-	Usage:   "scan <file>",
+	Usage:   "tokenize <file>",
 	Handler: &scanCommand{},
 }
 
 type scanCommand struct{}
 
 func (c scanCommand) Run(args []string) error {
-	set := cli.NewFlagSet("scan")
+	set := cli.NewFlagSet("tokenize")
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -78,7 +79,7 @@ func (c scanCommand) Run(args []string) error {
 
 func prepare() *cli.CommandTrie {
 	root := cli.New()
-	root.Register(single("scan"), &scanCmd)
+	root.Register(single("tokenize"), &scanCmd)
 	return root
 }
 

@@ -48,6 +48,11 @@ type Builder struct {
 	stack []*Element
 }
 
+func Build(r io.Reader) (*Document, error) {
+	b := NewBuilder(r)
+	return b.Build()
+}
+
 func NewBuilder(r io.Reader) *Builder {
 	b := Builder{
 		reader: NewReader(r),

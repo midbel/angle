@@ -98,7 +98,7 @@ func (f *Formatter) Format() error {
 		case TokCDATA:
 			err = f.writeCharData(tok)
 		case TokReference:
-			err = f.ws.WriteString(tok.Literal)
+			_, err = f.ws.WriteString(tok.Literal)
 		case TokText:
 			err = f.writeText(tok)
 		default:
@@ -207,7 +207,7 @@ func (f *Formatter) writeComment(tok Token) error {
 func (f *Formatter) writeText(tok Token) error {
 	lit := tok.Literal
 	if f.compact && strings.TrimSpace(lit) == "" {
-		return
+		return nil
 	}
 	f.ws.WriteString(lit)
 	return nil

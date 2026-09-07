@@ -11,6 +11,7 @@ import (
 
 	"github.com/midbel/angle/xml"
 	"github.com/midbel/cli"
+	"github.com/midbel/trellis"
 )
 
 var errFail = errors.New("fail")
@@ -149,11 +150,94 @@ func (c fmtCommand) Run(args []string) error {
 	return f.Format()
 }
 
+var treeCmd = cli.Command{
+	Name:    "tree",
+	Summary: "",
+	Usage:   "tree <file>",
+	Handler: &treeCommand{},
+}
+
+type treeCommand struct{}
+
+func (c treeCommand) Run(args []string) error {
+	set := cli.NewFlagSet("tree")
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	if set.NArg() != 1 {
+		return cli.ErrUsage
+	}
+
+	root, err := c.buildTree(set.Arg(0))
+	if err != nil {
+		return err
+	}
+	_ = root
+	return trellis.CompactTree(cli.Stdout, root, nil)
+}
+
+func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	dom, err := xml.Build(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var walk func(*trellis.Node, xml.Node)
+	walk = func(root *trellis.Node, node xml.Node) {
+		switch n := node.(type) {
+		case *xml.Comment:
+			x := trellis.Node{
+				Value: "comment",
+			}
+			root.Nodes = append(root.Nodes, &x)
+		case *xml.Text:
+			x := trellis.Node{
+				Value: "text",
+			}
+			root.Nodes = append(root.Nodes, &x)
+		case *xml.Element:
+			for _, a := range n.Attributes {
+				x := trellis.Node{
+					Value: fmt.Sprintf("@%s: %s", a.Local, a.Value),
+				}
+				root.Nodes = append(root.Nodes, &x)
+			}
+			for _, c := range n.Children {
+				// x := trellis.Node{
+				// 	Value: fmt.Sprintf("%s: %s", c.Local, c.Value),
+				// }
+				// root.Nodes = append(root.Nodes, &x)
+				walk(root, c)
+			}
+		case *xml.PI:
+			x := trellis.Node{
+				Value: fmt.Sprintf("pi(%s)", n.Local),
+			}
+			root.Nodes = append(root.Nodes, &x)
+		default:
+		}
+	}
+
+	root := trellis.Node{
+		Value: file,
+	}
+	for _, c := range dom.Children {
+		walk(&root, c)
+	}
+	return &root, nil
+}
+
 func prepare() *cli.CommandTrie {
 	root := cli.New()
 	root.Register(single("tokenize"), &scanCmd)
 	root.Register(single("echo"), &echoCmd)
 	root.Register(single("format"), &fmtCmd)
+	root.Register(single("tree"), &treeCmd)
 	return root
 }
 

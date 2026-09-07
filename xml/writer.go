@@ -23,7 +23,43 @@ func (w *Writer) SetCompact(c bool) {
 }
 
 func (w *Writer) Write(doc *Document) error {
+	for _, c := range doc.Children {
+		if err := w.writeNode(c); err != nil {
+			return err
+		}
+	}
 	return w.ws.Flush()
+}
+
+func (w *Writer) writeNode(node Node) error {
+	switch n := node.(type) {
+	case *Element:
+		return w.writeElement(n)
+	case *PI:
+		return w.writePI(n)
+	case *Text:
+		return w.writeText(n)
+	case *Comment:
+		return w.writeComment(n)
+	default:
+		return ErrSyntax
+	}
+}
+
+func (w *Writer) writeElement(e *Element) error {
+	return nil
+}
+
+func (w *Writer) writePI(p *PI) error {
+	return nil
+}
+
+func (w *Writer) writeText(t *Text) error {
+	return nil
+}
+
+func (w *Writer) writeComment(c *Comment) error {
+	return nil
 }
 
 type Formatter struct {
@@ -58,13 +94,13 @@ func (f *Formatter) Format() error {
 		case TokOpenPI:
 			err = f.writePI()
 		case TokComment:
-			f.writeComment(tok)
+			err = f.writeComment(tok)
 		case TokCDATA:
-			f.writeCharData(tok)
+			err = f.writeCharData(tok)
 		case TokReference:
-			f.ws.WriteString(tok.Literal)
+			err = f.ws.WriteString(tok.Literal)
 		case TokText:
-			f.writeText(tok)
+			err = f.writeText(tok)
 		default:
 		}
 		if err != nil {
@@ -157,7 +193,7 @@ func (f *Formatter) writePI() error {
 	return nil
 }
 
-func (f *Formatter) writeComment(tok Token) {
+func (f *Formatter) writeComment(tok Token) error {
 	f.ws.WriteRune(langle)
 	f.ws.WriteRune(dash)
 	f.ws.WriteRune(dash)
@@ -165,20 +201,19 @@ func (f *Formatter) writeComment(tok Token) {
 	f.ws.WriteRune(dash)
 	f.ws.WriteRune(dash)
 	f.ws.WriteRune(rangle)
+	return nil
 }
 
-func (f *Formatter) writeText(tok Token) {
+func (f *Formatter) writeText(tok Token) error {
 	lit := tok.Literal
-	if f.compact {
-		lit = strings.TrimSpace(lit)
-		if lit == "" {
-			return
-		}
+	if f.compact && strings.TrimSpace(lit) == "" {
+		return
 	}
 	f.ws.WriteString(lit)
+	return nil
 }
 
-func (f *Formatter) writeCharData(tok Token) {
+func (f *Formatter) writeCharData(tok Token) error {
 	f.ws.WriteRune(langle)
 	f.ws.WriteRune(question)
 	f.ws.WriteRune(lsquare)
@@ -188,10 +223,12 @@ func (f *Formatter) writeCharData(tok Token) {
 	f.ws.WriteRune(rsquare)
 	f.ws.WriteRune(rsquare)
 	f.ws.WriteRune(rangle)
+	return nil
 }
 
-func (f *Formatter) writeString(tok Token) {
+func (f *Formatter) writeString(tok Token) error {
 	f.ws.WriteRune(dquote)
 	f.ws.WriteString(tok.Literal)
 	f.ws.WriteRune(dquote)
+	return nil
 }

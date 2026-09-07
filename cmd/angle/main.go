@@ -114,7 +114,7 @@ var fmtCmd = cli.Command{
 }
 
 type fmtCommand struct {
-	Output io.WriteCloser
+	Output  io.WriteCloser
 	Compact bool
 }
 

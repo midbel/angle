@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/midbel/angle/xml"
 	"github.com/midbel/cli"
@@ -77,12 +79,141 @@ func (c scanCommand) Run(args []string) error {
 	return nil
 }
 
+var echoCmd = cli.Command{
+	Name:    "echo",
+	Alias:   []string{"debug", "print"},
+	Summary: "",
+	Usage:   "echo <file>",
+	Handler: &echoCommand{},
+}
+
+type echoCommand struct{}
+
+func (c echoCommand) Run(args []string) error {
+	set := cli.NewFlagSet("echo")
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	if set.NArg() != 1 {
+		return cli.ErrUsage
+	}
+	r, err := os.Open(set.Arg(0))
+	if err != nil {
+		cli.FailIO(err)
+	}
+	defer r.Close()
+	return Echo(r)
+}
+
 func prepare() *cli.CommandTrie {
 	root := cli.New()
 	root.Register(single("tokenize"), &scanCmd)
+	root.Register(single("echo"), &echoCmd)
 	return root
 }
 
 func single(str string) []string {
 	return []string{str}
+}
+
+type echoHandler struct {
+	depth int
+	ws    *bufio.Writer
+}
+
+func Echo(r io.Reader) error {
+	h := echoHandler{
+		ws: bufio.NewWriter(cli.Stdout),
+	}
+	defer h.done()
+
+	rs := xml.NewReader(r)
+	return rs.Read(&h)
+}
+
+func (h *echoHandler) done() {
+	h.ws.Flush()
+}
+
+func (h *echoHandler) enter() {
+	h.depth++
+}
+
+func (h *echoHandler) leave() {
+	h.depth--
+}
+
+func (h *echoHandler) writeIndent() {
+	for range h.depth {
+		h.writeString(" ")
+	}
+}
+
+func (h *echoHandler) writeString(str string) {
+	h.ws.WriteString(str)
+}
+
+func (h *echoHandler) writeBlank() {
+	h.ws.WriteRune(' ')
+}
+
+func (h *echoHandler) writeNL() {
+	h.ws.WriteRune('\n')
+}
+
+func (h *echoHandler) OnStartElement(el xml.Element) error {
+	defer h.enter()
+	h.writeIndent()
+	h.writeString("START")
+	h.writeBlank()
+	h.writeString(el.LexicalName())
+	h.writeNL()
+	for _, a := range el.Attributes {
+		h.writeIndent()
+		h.writeBlank()
+		h.writeString("-")
+		h.writeBlank()
+		h.writeString("@" + a.LexicalName())
+		h.writeString("=")
+		h.writeString(a.Value)
+		h.writeNL()
+	}
+	return nil
+}
+
+func (h *echoHandler) OnCloseElement(n xml.Name) error {
+	h.leave()
+	h.writeIndent()
+	h.writeString("CLOSE")
+	h.writeBlank()
+	h.writeString(n.QualifiedName())
+	h.writeNL()
+	return nil
+}
+
+func (h *echoHandler) OnText(t xml.Text) error {
+	h.writeIndent()
+	h.writeString("TEXT")
+	h.writeBlank()
+	h.writeString(strings.TrimSpace(t.Value))
+	h.writeNL()
+	return nil
+}
+
+func (h *echoHandler) OnComment(c xml.Comment) error {
+	h.writeIndent()
+	h.writeString("COMMENT")
+	h.writeBlank()
+	h.writeString(strings.TrimSpace(c.Value))
+	h.writeNL()
+	return nil
+}
+
+func (h *echoHandler) OnPI(p xml.PI) error {
+	h.writeIndent()
+	h.writeString("PI")
+	h.writeBlank()
+	h.writeString(p.QualifiedName())
+	h.writeNL()
+	return nil
 }

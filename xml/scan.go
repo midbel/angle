@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-
-	// "fmt"
 	"io"
 	"iter"
 	"unicode"

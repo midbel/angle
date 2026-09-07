@@ -181,7 +181,7 @@ func (c treeCommand) Run(args []string) error {
 			Spacing: 4,
 		},
 		StyleOptions: trellis.StyleOptions{
-			Padding: trellis.PaddingM,
+			Padding: trellis.PaddingS,
 		},
 	}
 	return trellis.CompactTree(cli.Stdout, root, &opts)

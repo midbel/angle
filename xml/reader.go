@@ -71,12 +71,13 @@ func (b *Builder) OnStartElement(el Element) error {
 	} else {
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &el)
 	}
+	b.stack = append(b.stack, &el)
 	return nil
 }
 
-func (b *Builder) OnCloseElement(_ Name) error {
+func (b *Builder) OnCloseElement(x Name) error {
 	if n := len(b.stack); n == 0 {
-		return ErrSyntax
+		// TODO
 	} else {
 		b.stack = b.stack[:n-1]
 	}
@@ -262,6 +263,7 @@ func (r *Reader) readStartElement(handler Handler) error {
 	r.updateElementName(&el)
 
 	ctx.Name = el.Name
+	ctx.NS = el.NS
 	r.replaceTop(ctx)
 
 	if err := r.checkDuplicateAttributes(el); err != nil {

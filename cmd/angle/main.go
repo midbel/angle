@@ -172,8 +172,19 @@ func (c treeCommand) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	_ = root
-	return trellis.CompactTree(cli.Stdout, root, nil)
+	opts := trellis.Options{
+		LayoutOptions: trellis.LayoutOptions{
+			Dimension: trellis.Dimension{
+				Width:  120,
+				Height: 50,
+			},
+			Spacing: 4,
+		},
+		StyleOptions: trellis.StyleOptions{
+			Padding: trellis.PaddingM,
+		},
+	}
+	return trellis.CompactTree(cli.Stdout, root, &opts)
 }
 
 func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
@@ -182,41 +193,43 @@ func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
 		return nil, err
 	}
 	defer r.Close()
+
 	dom, err := xml.Build(r)
 	if err != nil {
 		return nil, err
 	}
 
 	var walk func(*trellis.Node, xml.Node)
+
 	walk = func(root *trellis.Node, node xml.Node) {
 		switch n := node.(type) {
 		case *xml.Comment:
 			x := trellis.Node{
-				Value: "comment",
+				Value: fmt.Sprintf("comment(%s)", strings.TrimSpace(n.Value)),
 			}
 			root.Nodes = append(root.Nodes, &x)
 		case *xml.Text:
 			x := trellis.Node{
-				Value: "text",
+				Value: fmt.Sprintf("text(%s)", strings.TrimSpace(n.Value)),
 			}
 			root.Nodes = append(root.Nodes, &x)
 		case *xml.Element:
+			x := trellis.Node{
+				Value: fmt.Sprintf("element(%s)", n.QualifiedName()),
+			}
 			for _, a := range n.Attributes {
-				x := trellis.Node{
+				s := trellis.Node{
 					Value: fmt.Sprintf("@%s: %s", a.Local, a.Value),
 				}
-				root.Nodes = append(root.Nodes, &x)
+				x.Nodes = append(x.Nodes, &s)
 			}
 			for _, c := range n.Children {
-				// x := trellis.Node{
-				// 	Value: fmt.Sprintf("%s: %s", c.Local, c.Value),
-				// }
-				// root.Nodes = append(root.Nodes, &x)
-				walk(root, c)
+				walk(&x, c)
 			}
+			root.Nodes = append(root.Nodes, &x)
 		case *xml.PI:
 			x := trellis.Node{
-				Value: fmt.Sprintf("pi(%s)", n.Local),
+				Value: fmt.Sprintf("pi(%s)", n.QualifiedName()),
 			}
 			root.Nodes = append(root.Nodes, &x)
 		default:

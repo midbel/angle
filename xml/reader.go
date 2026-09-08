@@ -11,6 +11,7 @@ import (
 
 var (
 	ErrSyntax      = errors.New("xml: syntax error")
+	ErrName        = errors.New("xml: invalid name")
 	ErrReference   = errors.New("xml: invalid reference")
 	ErrElement     = errors.New("xml: invalid element")
 	ErrAttribute   = errors.New("xml: invalid attribute")
@@ -385,16 +386,7 @@ func (r *Reader) decodeName() (Name, error) {
 		return Name{}, r.syntaxError()
 	}
 	defer r.next()
-	var (
-		name Name
-		ok   bool
-	)
-	name.Prefix, name.Local, ok = strings.Cut(r.currentLiteral(), ":")
-	if !ok {
-		name.Prefix = ""
-		name.Local = r.currentLiteral()
-	}
-	return name, nil
+	return ParseName(r.currentLiteral())
 }
 
 func (r *Reader) decodeAttr() (Attribute, error) {

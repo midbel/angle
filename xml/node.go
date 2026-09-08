@@ -1,6 +1,10 @@
 package xml
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
 
 type NodeType uint8
 
@@ -28,6 +32,40 @@ func (n Namespace) Equal(other Namespace) bool {
 type Name struct {
 	Local string
 	Namespace
+}
+
+func IsValidName(str string) bool {
+	r, size := utf8.DecodeRuneInString(str)
+	if !IsValidStartNameChar(r) {
+		return false
+	}
+	for _, r := range str[size:] {
+		if !IsValidNameChar(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func ParseName(str string) (Name, error) {
+	valid := IsValidName(str)
+	if !valid {
+		return Name{}, ErrName
+	}
+	var (
+		name Name
+		ok   bool
+	)
+	name.Prefix, name.Local, ok = strings.Cut(str, ":")
+	if !ok {
+		name.Prefix = ""
+		name.Local = str
+	} else {
+		if name.Prefix == "" || name.Local == "" {
+			return name, ErrName
+		}
+	}
+	return name, nil
 }
 
 func (n Name) Equal(other Name) bool {

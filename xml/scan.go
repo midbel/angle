@@ -222,7 +222,7 @@ func (s *scanner) scanCData(tok *Token) {
 	s.advance()
 	s.reset()
 	var (
-		done bool
+		done  bool
 		valid = true
 	)
 	for !s.done() {
@@ -259,7 +259,7 @@ func (s *scanner) scanComment(tok *Token) {
 	s.advance()
 
 	var (
-		done bool
+		done  bool
 		valid = true
 	)
 	for !s.done() {
@@ -400,7 +400,7 @@ func (s *scanner) scanString(tok *Token) {
 	}
 	var (
 		opening = s.char
-		valid = true
+		valid   = true
 	)
 	s.advance()
 	for !s.done() && s.char != opening {

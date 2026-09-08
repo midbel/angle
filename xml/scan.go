@@ -165,8 +165,8 @@ func (s *scanner) scanReference(tok *Token) {
 			s.write()
 			s.advance()
 		}
-	} else if isNameStart(s.char) {
-		accept = isNameChar
+	} else if IsValidStartNameChar(s.char) {
+		accept = IsValidNameChar
 
 		s.write()
 		s.advance()
@@ -193,11 +193,18 @@ func (s *scanner) scanReference(tok *Token) {
 }
 
 func (s *scanner) scanText(tok *Token) {
+	valid := true
 	for !s.done() && (s.char != langle && s.char != ampersand) {
+		if valid && !IsValidChar(s.char) {
+			valid = false
+		}
 		s.write()
 		s.advance()
 	}
 	tok.Type = TokText
+	if !valid {
+		tok.Type = TokInvalid
+	}
 	tok.Literal = s.literal()
 }
 
@@ -214,7 +221,10 @@ func (s *scanner) scanCData(tok *Token) {
 	}
 	s.advance()
 	s.reset()
-	var done bool
+	var (
+		done bool
+		valid = true
+	)
 	for !s.done() {
 		if s.char == rsquare && s.peek() == s.char {
 			s.advance()
@@ -227,12 +237,15 @@ func (s *scanner) scanCData(tok *Token) {
 			s.writeRune(rsquare)
 			continue
 		}
+		if valid && !IsValidChar(s.char) {
+			valid = false
+		}
 		s.write()
 		s.advance()
 	}
 	tok.Literal = s.literal()
 	tok.Type = TokCDATA
-	if !done {
+	if !done || !valid {
 		tok.Type = TokInvalid
 	}
 }
@@ -245,7 +258,10 @@ func (s *scanner) scanComment(tok *Token) {
 	}
 	s.advance()
 
-	var done bool
+	var (
+		done bool
+		valid = true
+	)
 	for !s.done() {
 		if s.char == dash && s.peek() == s.char {
 			s.advance()
@@ -257,15 +273,18 @@ func (s *scanner) scanComment(tok *Token) {
 			s.writeRune(dash)
 			continue
 		}
+		if valid && !IsValidChar(s.char) {
+			valid = false
+		}
 		s.write()
 		s.advance()
 	}
 	tok.Type = TokComment
 	tok.Literal = s.literal()
-	if done {
-		s.advance()
-	} else {
+	if !done || !valid {
 		tok.Type = TokInvalid
+	} else {
+		s.advance()
 	}
 }
 
@@ -297,13 +316,17 @@ func (s *scanner) scanPIName(tok *Token) {
 
 func (s *scanner) scanPIData(tok *Token) {
 	s.skipBlank()
+	valid := true
 	for !s.done() && s.char != question && s.peek() != rangle {
+		if valid && !IsValidChar(s.char) {
+			valid = false
+		}
 		s.write()
 		s.advance()
 	}
 	tok.Type = TokString
 	tok.Literal = s.literal()
-	if s.done() {
+	if s.done() || !valid {
 		tok.Type = TokInvalid
 	}
 	s.scan = s.scanClosePI
@@ -325,7 +348,7 @@ func (s *scanner) scanAfterSlash(tok *Token) {
 		tok.Type = TokCloseTag
 		s.scan = s.scanDefault
 		s.advance()
-	case isNameStart(s.char):
+	case IsValidStartNameChar(s.char):
 		s.scanName(tok)
 		s.scan = s.scanTag
 	default:
@@ -337,7 +360,7 @@ func (s *scanner) scanTag(tok *Token) {
 	s.skipBlank()
 	switch {
 	default:
-	case isNameStart(s.char):
+	case IsValidStartNameChar(s.char):
 		s.scanName(tok)
 	case s.char == slash:
 		tok.Type = TokSlash
@@ -355,13 +378,13 @@ func (s *scanner) scanTag(tok *Token) {
 }
 
 func (s *scanner) scanName(tok *Token) {
-	if !isNameStart(s.char) {
+	if !IsValidStartNameChar(s.char) {
 		tok.Type = TokInvalid
 		return
 	}
 	s.write()
 	s.advance()
-	for !s.done() && isNameChar(s.char) {
+	for !s.done() && IsValidNameChar(s.char) {
 		s.write()
 		s.advance()
 	}
@@ -375,15 +398,21 @@ func (s *scanner) scanString(tok *Token) {
 		tok.Type = TokInvalid
 		return
 	}
-	opening := s.char
+	var (
+		opening = s.char
+		valid = true
+	)
 	s.advance()
 	for !s.done() && s.char != opening {
+		if valid && !IsValidChar(s.char) {
+			valid = false
+		}
 		s.write()
 		s.advance()
 	}
 	tok.Type = TokString
 	tok.Literal = s.literal()
-	if s.char != opening {
+	if s.char != opening || !valid {
 		tok.Type = TokInvalid
 	} else {
 		s.advance()
@@ -479,16 +508,6 @@ const (
 	dot        = '.'
 	pound      = '#'
 )
-
-func isNameStart(r rune) bool {
-	return (r >= 'A' && r <= 'Z') ||
-		(r >= 'a' && r <= 'z') ||
-		r == colon || r == underscore
-}
-
-func isNameChar(r rune) bool {
-	return isNameStart(r) || r == dot || r == dash
-}
 
 func isHexa(r rune) bool {
 	return (r >= '0' && r <= '9') ||

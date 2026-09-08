@@ -2,6 +2,7 @@ package xml
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 )
 
@@ -37,9 +38,6 @@ func (f *Formatter) Format() error {
 }
 
 func (f *Formatter) OnStartElement(el Element) error {
-	if len(el.Children) == 0 {
-		return f.ws.Empty(el.Name, el.Attributes, el.NS)
-	}
 	return f.ws.StartElement(el.Name, el.Attributes, el.NS)
 }
 
@@ -114,6 +112,7 @@ func (w *Writer) StartElement(name Name, attrs []Attribute, ns []Namespace) erro
 	if err := w.err(); err != nil {
 		return err
 	}
+	w.push(name)
 	w.writeRune(langle)
 	if err := w.writeName(name); err != nil {
 		return err
@@ -138,6 +137,12 @@ func (w *Writer) CloseElement(name Name) error {
 	if err := w.err(); err != nil {
 		return err
 	}
+
+	last, ok := w.pop()
+	if !ok || !last.Equal(name) {
+		return ErrElement
+	}
+
 	w.writeRune(langle)
 	w.writeRune(slash)
 	if err := w.writeName(name); err != nil {
@@ -269,4 +274,21 @@ func (w *Writer) nl() error {
 
 func (w *Writer) err() error {
 	return w.lastErr
+}
+
+func (w *Writer) push(name Name) {
+	w.stack = append(w.stack, name)
+}
+
+func (w *Writer) pop() (Name, bool) {
+	var (
+		last Name
+		ok   bool
+	)
+	if x := len(w.stack); x > 0 {
+		ok = true
+		last = w.stack[x-1]
+		w.stack = w.stack[:x-1]
+	}
+	return last, ok
 }

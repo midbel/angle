@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -193,59 +194,7 @@ func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
 	}
 	defer r.Close()
 
-	dom, err := xml.Build(r)
-	if err != nil {
-		return nil, err
-	}
-
-	var walk func(*trellis.Node, xml.Node)
-
-	walk = func(root *trellis.Node, node xml.Node) {
-		switch n := node.(type) {
-		case *xml.Comment:
-			x := trellis.Node{
-				Value: fmt.Sprintf("comment(%s)", strings.TrimSpace(n.Value)),
-			}
-			root.Nodes = append(root.Nodes, &x)
-		case *xml.Text:
-			str := strings.TrimSpace(n.Value)
-			if str == "" {
-				break
-			}
-			x := trellis.Node{
-				Value: fmt.Sprintf("text(%s)", str),
-			}
-			root.Nodes = append(root.Nodes, &x)
-		case *xml.Element:
-			x := trellis.Node{
-				Value: fmt.Sprintf("element(%s)", n.QualifiedName()),
-			}
-			for _, a := range n.Attributes {
-				s := trellis.Node{
-					Value: fmt.Sprintf("@%s: %s", a.Local, a.Value),
-				}
-				x.Nodes = append(x.Nodes, &s)
-			}
-			for _, c := range n.Children {
-				walk(&x, c)
-			}
-			root.Nodes = append(root.Nodes, &x)
-		case *xml.PI:
-			x := trellis.Node{
-				Value: fmt.Sprintf("pi(%s)", n.QualifiedName()),
-			}
-			root.Nodes = append(root.Nodes, &x)
-		default:
-		}
-	}
-
-	root := trellis.Node{
-		Value: file,
-	}
-	for _, c := range dom.Children {
-		walk(&root, c)
-	}
-	return &root, nil
+	return Build(r)
 }
 
 func prepare() *cli.CommandTrie {
@@ -361,4 +310,111 @@ func (h *echoHandler) OnPI(p xml.PI) error {
 	h.writeString(p.QualifiedName())
 	h.writeNL()
 	return nil
+}
+
+type treeBuilder struct {
+	root  *trellis.Node
+	stack []*trellis.Node
+}
+
+func Build(r io.Reader) (*trellis.Node, error) {
+	var (
+		file = "stream"
+		tb   treeBuilder
+		rs   = xml.NewReader(r)
+	)
+	if n, ok := r.(interface{ Name() string }); ok {
+		file = filepath.Clean(n.Name())
+	}
+	tb.root = &trellis.Node{
+		Value: fmt.Sprintf("document(%s)", file),
+	}
+	return tb.root, rs.Read(&tb)
+}
+
+func (b *treeBuilder) OnStartElement(el xml.Element) error {
+	node := &trellis.Node{
+		Value: fmt.Sprintf("element(%s)", el.QualifiedName()),
+	}
+	if len(el.Attributes) > 0 {
+		sub := &trellis.Node{
+			Value: "attributes",
+		}
+		for _, a := range el.Attributes {
+			n := &trellis.Node{
+				Value: fmt.Sprintf("@%s = %s", a.QualifiedName(), a.Value),
+			}
+			sub.Nodes = append(sub.Nodes, n)
+		}
+		node.Nodes = append(node.Nodes, sub)
+	}
+	if len(el.NS) > 0 {
+		sub := &trellis.Node{
+			Value: "namespaces",
+		}
+		for _, ns := range el.NS {
+			n := &trellis.Node{
+				Value: fmt.Sprintf("%s = %s", ns.Prefix, ns.URI),
+			}
+			sub.Nodes = append(sub.Nodes, n)
+		}
+		node.Nodes = append(node.Nodes, sub)
+	}
+	b.appendNode(node)
+	b.stack = append(b.stack, node)
+	return nil
+}
+
+func (b *treeBuilder) OnCloseElement(_ xml.Name) error {
+	if n := len(b.stack); n == 0 {
+		// TODO
+	} else {
+		b.stack = b.stack[:n-1]
+	}
+	return nil
+}
+
+func (b *treeBuilder) OnText(t xml.Text) error {
+	val := strings.TrimSpace(t.Value)
+	if val == "" {
+		return nil
+	}
+	node := &trellis.Node{
+		Value: fmt.Sprintf("text(%s)", val),
+	}
+	b.appendNode(node)
+	return nil
+}
+
+func (b *treeBuilder) OnComment(c xml.Comment) error {
+	val := strings.TrimSpace(c.Value)
+	if val == "" {
+		return nil
+	}
+	node := &trellis.Node{
+		Value: fmt.Sprintf("comment(%s)", val),
+	}
+	b.appendNode(node)
+	return nil
+}
+
+func (b *treeBuilder) OnPI(p xml.PI) error {
+	node := &trellis.Node{
+		Value: fmt.Sprintf("pi(%s)", p.QualifiedName()),
+		Nodes: []*trellis.Node{
+			{
+				Value: p.Data,
+			},
+		},
+	}
+	b.appendNode(node)
+	return nil
+}
+
+func (b *treeBuilder) appendNode(node *trellis.Node) {
+	if n := len(b.stack); n == 0 {
+		b.root.Nodes = append(b.root.Nodes, node)
+	} else {
+		b.stack[n-1].Nodes = append(b.stack[n-1].Nodes, node)
+	}
 }

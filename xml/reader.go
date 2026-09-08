@@ -42,31 +42,31 @@ type Handler interface {
 	OnPI(PI) error
 }
 
-type Builder struct {
+type Decoder struct {
 	reader *Reader
 
 	doc   *Document
 	stack []*Element
 }
 
-func Build(r io.Reader) (*Document, error) {
-	b := NewBuilder(r)
-	return b.Build()
+func Decode(r io.Reader) (*Document, error) {
+	b := NewDecoder(r)
+	return b.Decode()
 }
 
-func NewBuilder(r io.Reader) *Builder {
-	b := Builder{
+func NewDecoder(r io.Reader) *Decoder {
+	b := Decoder{
 		reader: NewReader(r),
 		doc:    new(Document),
 	}
 	return &b
 }
 
-func (b *Builder) Build() (*Document, error) {
+func (b *Decoder) Decode() (*Document, error) {
 	return b.doc, b.reader.Read(b)
 }
 
-func (b *Builder) OnStartElement(el Element) error {
+func (b *Decoder) OnStartElement(el Element) error {
 	if n := len(b.stack); n == 0 {
 		b.doc.Children = append(b.doc.Children, &el)
 	} else {
@@ -76,7 +76,7 @@ func (b *Builder) OnStartElement(el Element) error {
 	return nil
 }
 
-func (b *Builder) OnCloseElement(x Name) error {
+func (b *Decoder) OnCloseElement(x Name) error {
 	if n := len(b.stack); n == 0 {
 		// TODO
 	} else {
@@ -85,7 +85,7 @@ func (b *Builder) OnCloseElement(x Name) error {
 	return nil
 }
 
-func (b *Builder) OnText(t Text) error {
+func (b *Decoder) OnText(t Text) error {
 	if n := len(b.stack); n == 0 {
 		b.doc.Children = append(b.doc.Children, &t)
 	} else {
@@ -94,7 +94,7 @@ func (b *Builder) OnText(t Text) error {
 	return nil
 }
 
-func (b *Builder) OnComment(c Comment) error {
+func (b *Decoder) OnComment(c Comment) error {
 	if n := len(b.stack); n == 0 {
 		b.doc.Children = append(b.doc.Children, &c)
 	} else {
@@ -103,7 +103,7 @@ func (b *Builder) OnComment(c Comment) error {
 	return nil
 }
 
-func (b *Builder) OnPI(p PI) error {
+func (b *Decoder) OnPI(p PI) error {
 	if n := len(b.stack); n == 0 {
 		b.doc.Children = append(b.doc.Children, &p)
 	} else {

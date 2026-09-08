@@ -178,7 +178,6 @@ func (c treeCommand) Run(args []string) error {
 				Width:  120,
 				Height: 50,
 			},
-			Spacing: 4,
 		},
 		StyleOptions: trellis.StyleOptions{
 			Padding: trellis.PaddingS,
@@ -209,8 +208,12 @@ func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
 			}
 			root.Nodes = append(root.Nodes, &x)
 		case *xml.Text:
+			str := strings.TrimSpace(n.Value)
+			if str == "" {
+				break
+			}
 			x := trellis.Node{
-				Value: fmt.Sprintf("text(%s)", strings.TrimSpace(n.Value)),
+				Value: fmt.Sprintf("text(%s)", str),
 			}
 			root.Nodes = append(root.Nodes, &x)
 		case *xml.Element:

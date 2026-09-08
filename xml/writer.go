@@ -3,13 +3,69 @@ package xml
 import (
 	"bufio"
 	"io"
-	"strings"
 )
 
+type Encoder struct {
+}
+
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{}
+}
+
+func (e *Encoder) Encode(doc *Document) error {
+	return nil
+}
+
+type Formatter struct {
+	ws *Writer
+	rs *Reader
+}
+
+func NewFormatter(w io.Writer, r io.Reader) *Formatter {
+	f := Formatter{
+		ws: NewWriter(w),
+		rs: NewReader(r),
+	}
+	return &f
+}
+
+func (f *Formatter) Format() error {
+	if err := f.rs.Read(f); err != nil {
+		return err
+	}
+	return f.ws.Flush()
+}
+
+func (f *Formatter) OnStartElement(el Element) error {
+	if len(el.Children) == 0 {
+		return f.ws.Empty(el.Name, el.Attributes, el.NS)
+	}
+	return f.ws.StartElement(el.Name, el.Attributes, el.NS)
+}
+
+func (f *Formatter) OnCloseElement(n Name) error {
+	return f.ws.CloseElement(n)
+}
+
+func (f *Formatter) OnText(t Text) error {
+	return f.ws.Text(t.Value)
+}
+
+func (f *Formatter) OnComment(c Comment) error {
+	return f.ws.Comment(c.Value)
+}
+
+func (f *Formatter) OnPI(p PI) error {
+	return f.ws.PI(p.Name, p.Data)
+}
+
 type Writer struct {
-	ws      *bufio.Writer
-	depth   int
+	ws *bufio.Writer
+
 	compact bool
+	stack   []Name
+
+	lastErr error
 }
 
 func NewWriter(w io.Writer) *Writer {
@@ -18,217 +74,199 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-func (w *Writer) SetCompact(c bool) {
-	w.compact = c
+func (w *Writer) SetCompact(compact bool) {
+	w.compact = compact
 }
 
-func (w *Writer) Write(doc *Document) error {
-	for _, c := range doc.Children {
-		if err := w.writeNode(c); err != nil {
-			return err
-		}
+func (w *Writer) Flush() error {
+	if err := w.err(); err != nil {
+		return err
 	}
 	return w.ws.Flush()
 }
 
-func (w *Writer) writeNode(node Node) error {
-	switch n := node.(type) {
-	case *Element:
-		return w.writeElement(n)
-	case *PI:
-		return w.writePI(n)
-	case *Text:
-		return w.writeText(n)
-	case *Comment:
-		return w.writeComment(n)
-	default:
-		return ErrSyntax
+func (w *Writer) Empty(name Name, attrs []Attribute, ns []Namespace) error {
+	if err := w.err(); err != nil {
+		return err
 	}
-}
-
-func (w *Writer) writeElement(e *Element) error {
-	return nil
-}
-
-func (w *Writer) writePI(p *PI) error {
-	return nil
-}
-
-func (w *Writer) writeText(t *Text) error {
-	return nil
-}
-
-func (w *Writer) writeComment(c *Comment) error {
-	return nil
-}
-
-type Formatter struct {
-	ws      *bufio.Writer
-	scan    *scanner
-	depth   int
-	compact bool
-}
-
-func NewFormatter(w io.Writer, r io.Reader) *Formatter {
-	f := Formatter{
-		ws:   bufio.NewWriter(w),
-		scan: createScanner(r),
+	w.writeRune(langle)
+	if err := w.writeName(name); err != nil {
+		return err
 	}
-	return &f
-}
-
-func (f *Formatter) SetCompact(c bool) {
-	f.compact = c
-}
-
-func (f *Formatter) Format() error {
-	for {
-		tok := f.scan.Scan()
-		if tok.Type == TokEof {
-			break
-		}
-		var err error
-		switch tok.Type {
-		case TokOpenTag:
-			err = f.writeOpenTag()
-		case TokOpenPI:
-			err = f.writePI()
-		case TokComment:
-			err = f.writeComment(tok)
-		case TokCDATA:
-			err = f.writeCharData(tok)
-		case TokReference:
-			_, err = f.ws.WriteString(tok.Literal)
-		case TokText:
-			err = f.writeText(tok)
-		default:
-		}
-		if err != nil {
+	for _, n := range ns {
+		w.writeRune(space)
+		if err := w.writeNamespace(n); err != nil {
 			return err
 		}
 	}
-	return f.ws.Flush()
-}
-
-func (f *Formatter) writeOpenTag() error {
-	tok := f.scan.Scan()
-	switch tok.Type {
-	case TokSlash:
-		f.depth--
-		return f.writeEndElement()
-	case TokName:
-		f.depth++
-		return f.writeStartElement(tok)
-	default:
-		return ErrSyntax
-	}
-}
-
-func (f *Formatter) writeStartElement(tok Token) error {
-	f.ws.WriteRune(langle)
-	f.ws.WriteString(tok.Literal)
-
-	for {
-		tok = f.scan.Scan()
-		if tok.Type != TokName {
-			break
+	for _, a := range attrs {
+		w.writeRune(space)
+		if err := w.writeAttribute(a); err != nil {
+			return err
 		}
-		f.ws.WriteRune(space)
-		f.ws.WriteString(tok.Literal)
-		if tok = f.scan.Scan(); tok.Type != TokEqual {
-			return ErrAttribute
+	}
+	w.writeRune(slash)
+	w.writeRune(rangle)
+	return w.err()
+}
+
+func (w *Writer) StartElement(name Name, attrs []Attribute, ns []Namespace) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	w.writeRune(langle)
+	if err := w.writeName(name); err != nil {
+		return err
+	}
+	for _, n := range ns {
+		w.writeRune(space)
+		if err := w.writeNamespace(n); err != nil {
+			return err
 		}
-		f.ws.WriteRune(equal)
-		if tok = f.scan.Scan(); tok.Type != TokString {
-			return ErrAttribute
+	}
+	for _, a := range attrs {
+		w.writeRune(space)
+		if err := w.writeAttribute(a); err != nil {
+			return err
 		}
-		f.writeString(tok)
 	}
-	if tok.Type == TokSlash {
-		f.ws.WriteRune(slash)
-		tok = f.scan.Scan()
-	}
-	if tok.Type != TokCloseTag {
-		return ErrElement
-	}
-	f.ws.WriteRune(rangle)
-	return nil
+	w.writeRune(rangle)
+	return w.err()
 }
 
-func (f *Formatter) writeEndElement() error {
-	f.ws.WriteRune(langle)
-	f.ws.WriteRune(slash)
-
-	tok := f.scan.Scan()
-	if tok.Type != TokName {
-		return ErrElement
+func (w *Writer) CloseElement(name Name) error {
+	if err := w.err(); err != nil {
+		return err
 	}
-	f.ws.WriteString(tok.Literal)
-	if tok = f.scan.Scan(); tok.Type != TokCloseTag {
-		return ErrElement
+	w.writeRune(langle)
+	w.writeRune(slash)
+	if err := w.writeName(name); err != nil {
+		return err
 	}
-	f.ws.WriteRune(rangle)
-	return nil
+	w.writeRune(rangle)
+	return w.err()
 }
 
-func (f *Formatter) writePI() error {
-	f.ws.WriteRune(langle)
-	f.ws.WriteRune(question)
-
-	tok := f.scan.Scan()
-	if tok.Type != TokName {
-		return ErrElement
+func (w *Writer) Text(text string) error {
+	if err := w.err(); err != nil {
+		return err
 	}
-	f.ws.WriteString(tok.Literal)
-
-	if tok = f.scan.Scan(); tok.Type == TokString {
-		f.ws.WriteRune(space)
-		f.ws.WriteString(tok.Literal)
-	}
-	if tok = f.scan.Scan(); tok.Type != TokClosePI {
-		return ErrElement
-	}
-	f.ws.WriteRune(question)
-	f.ws.WriteRune(rangle)
-	return nil
+	return w.writeString(text)
 }
 
-func (f *Formatter) writeComment(tok Token) error {
-	f.ws.WriteRune(langle)
-	f.ws.WriteRune(dash)
-	f.ws.WriteRune(dash)
-	f.ws.WriteString(tok.Literal)
-	f.ws.WriteRune(dash)
-	f.ws.WriteRune(dash)
-	f.ws.WriteRune(rangle)
+func (w *Writer) Comment(comment string) error {
 	return nil
-}
-
-func (f *Formatter) writeText(tok Token) error {
-	lit := tok.Literal
-	if f.compact && strings.TrimSpace(lit) == "" {
-		return nil
+	if err := w.err(); err != nil {
+		return err
 	}
-	f.ws.WriteString(lit)
-	return nil
+	w.writeRune(langle)
+	w.writeRune(dash)
+	w.writeRune(dash)
+	if err := w.writeString(comment); err != nil {
+		return err
+	}
+	w.writeRune(dash)
+	w.writeRune(dash)
+	w.writeRune(rangle)
+	return w.err()
 }
 
-func (f *Formatter) writeCharData(tok Token) error {
-	f.ws.WriteRune(langle)
-	f.ws.WriteRune(question)
-	f.ws.WriteRune(lsquare)
-	f.ws.WriteString("CDATA")
-	f.ws.WriteRune(lsquare)
-	f.ws.WriteString(tok.Literal)
-	f.ws.WriteRune(rsquare)
-	f.ws.WriteRune(rsquare)
-	f.ws.WriteRune(rangle)
-	return nil
+func (w *Writer) PI(name Name, data string) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	w.writeRune(langle)
+	w.writeRune(question)
+	if err := w.writeName(name); err != nil {
+		return err
+	}
+	w.writeRune(space)
+	if err := w.writeString(data); err != nil {
+		return err
+	}
+	w.writeRune(question)
+	w.writeRune(rangle)
+	return w.err()
 }
 
-func (f *Formatter) writeString(tok Token) error {
-	f.ws.WriteRune(dquote)
-	f.ws.WriteString(tok.Literal)
-	f.ws.WriteRune(dquote)
-	return nil
+func (w *Writer) writeNamespace(ns Namespace) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	if err := w.writeString("xmlns"); err != nil {
+		return err
+	}
+	if ns.Prefix != "" {
+		w.writeRune(colon)
+		if err := w.writeString(ns.Prefix); err != nil {
+			return err
+		}
+	}
+	w.writeRune(equal)
+	w.writeRune(dquote)
+	if err := w.writeString(ns.URI); err != nil {
+		return err
+	}
+	w.writeRune(dquote)
+	return w.err()
+}
+
+func (w *Writer) writeAttribute(attr Attribute) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	if err := w.writeName(attr.Name); err != nil {
+		return err
+	}
+	w.writeRune(equal)
+	w.writeRune(dquote)
+	if err := w.writeString(attr.Value); err != nil {
+		return err
+	}
+	w.writeRune(dquote)
+	return w.err()
+}
+
+func (w *Writer) writeName(name Name) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	if name.Prefix != "" {
+		err := w.writeString(name.Prefix)
+		if err != nil {
+			return err
+		}
+		w.writeRune(colon)
+	}
+	if err := w.writeString(name.Local); err != nil {
+		return err
+	}
+	return w.err()
+}
+
+func (w *Writer) writeString(str string) error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	_, w.lastErr = w.ws.WriteString(str)
+	return w.lastErr
+}
+
+func (w *Writer) writeRune(char rune) {
+	if err := w.err(); err != nil {
+		return
+	}
+	_, w.lastErr = w.ws.WriteRune(char)
+}
+
+func (w *Writer) nl() error {
+	if err := w.err(); err != nil {
+		return err
+	}
+	w.writeRune(nl)
+	return w.err()
+}
+
+func (w *Writer) err() error {
+	return w.lastErr
 }

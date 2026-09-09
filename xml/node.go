@@ -25,6 +25,10 @@ type Namespace struct {
 	URI    string
 }
 
+func (n Namespace) Zero() bool {
+	return n.Prefix == "" && n.URI == ""
+}
+
 func (n Namespace) Equal(other Namespace) bool {
 	return n.Prefix == other.Prefix && n.URI == other.URI
 }
@@ -66,6 +70,10 @@ func ParseName(str string) (Name, error) {
 		}
 	}
 	return name, nil
+}
+
+func (n Name) Zero() bool {
+	return n.Local == "" && n.Namespace.Zero()
 }
 
 func (n Name) Equal(other Name) bool {

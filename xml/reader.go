@@ -442,7 +442,11 @@ func (r *Reader) decodeReference() (string, error) {
 	if err != nil {
 		return "", r.createError(ErrReference)
 	}
-	return string(rune(num)), nil
+	char := rune(num)
+	if !IsValidChar(char) {
+		return "", r.createError(ErrReference)
+	}
+	return string(char), nil
 }
 
 func (r *Reader) is(kind Type) bool {

@@ -146,8 +146,8 @@ func (c fmtCommand) Run(args []string) error {
 	} else {
 		defer c.Output.Close()
 	}
-	f := xml.NewFormatter(c.Output, r)
-	return f.Format()
+	f := xml.NewFormatter(c.Output)
+	return f.Format(r)
 }
 
 var treeCmd = cli.Command{

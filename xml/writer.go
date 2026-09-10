@@ -16,6 +16,10 @@ func NewEncoder(w io.Writer) *Encoder {
 	}
 }
 
+func (e *Encoder) SetCompact(compact bool) {
+	e.writer.SetCompact(compact)
+}
+
 func (e *Encoder) Encode(doc *Document) error {
 	for _, n := range doc.Children {
 		if err := e.encodeNode(n); err != nil {
@@ -83,7 +87,12 @@ func NewFormatter(w io.Writer) *Formatter {
 	return &f
 }
 
+func (f *Formatter) SetCompact(compact bool) {
+	f.writer.SetCompact(compact)
+}
+
 func (f *Formatter) Format(r io.ReadSeeker) error {
+	defer f.reset()
 	root, err := f.analyze(r)
 	if err != nil {
 		return err
@@ -99,30 +108,31 @@ func (f *Formatter) OnStartElement(e Element) error {
 	}
 	item := f.stack[f.offset]
 	f.offset++
-
+	if f.isBlock() {
+		f.writer.NL()
+		f.writer.Indent(f.depth)
+	}
 	err := f.writer.StartElement(e.Name, e.Attributes, e.NS)
 	if err != nil {
 		return err
 	}
 	f.types = append(f.types, item.typeOf())
-	if f.isBlock() {
-		f.writer.NL()
-		f.depth++
-	}
+	f.depth++
 	return nil
 }
 
 func (f *Formatter) OnCloseElement(n Name) error {
+	if f.isBlock() {
+		f.writer.NL()
+		f.writer.Indent(f.depth - 1)
+	}
 	if err := f.writer.CloseElement(n); err != nil {
 		return err
 	}
 	if n := len(f.types); n > 0 {
 		f.types = f.types[:n-1]
 	}
-	if f.isBlock() {
-		f.writer.NL()
-		f.depth--
-	}
+	f.depth--
 	return nil
 }
 
@@ -135,21 +145,31 @@ func (f *Formatter) OnText(t Text) error {
 }
 
 func (f *Formatter) OnComment(c Comment) error {
+	if f.isBlock() && f.offset > 0 {
+		if err := f.writer.NL(); err != nil {
+			return err
+		}
+		if err := f.writer.Indent(f.depth); err != nil {
+			return err
+		}
+	}
 	if err := f.writer.Comment(c.Value); err != nil {
 		return err
-	}
-	if f.isBlock() {
-		return f.writer.NL()
 	}
 	return nil
 }
 
 func (f *Formatter) OnPI(p PI) error {
+	if f.isBlock() && f.offset > 0 {
+		if err := f.writer.NL(); err != nil {
+			return err
+		}
+		if err := f.writer.Indent(f.depth); err != nil {
+			return err
+		}
+	}
 	if err := f.writer.PI(p.Name, p.Data); err != nil {
 		return err
-	}
-	if f.isBlock() {
-		return f.writer.NL()
 	}
 	return nil
 }
@@ -172,6 +192,13 @@ func (f *Formatter) format(r io.Reader) error {
 		return err
 	}
 	return f.writer.Flush()
+}
+
+func (f *Formatter) reset() {
+	f.depth = 0
+	f.offset = 0
+	f.types = f.types[:0]
+	f.stack = f.stack[:0]
 }
 
 func (f *Formatter) isBlock() bool {
@@ -352,10 +379,13 @@ func (w *Writer) NL() error {
 }
 
 func (w *Writer) Indent(level int) error {
+	if w.compact {
+		return nil
+	}
 	if err := w.err(); err != nil {
 		return err
 	}
-	for range level {
+	for range level * 2 {
 		w.writeRune(space)
 	}
 	return w.err()
@@ -438,7 +468,6 @@ func (w *Writer) Text(text string) error {
 }
 
 func (w *Writer) Comment(comment string) error {
-	return nil
 	if err := w.err(); err != nil {
 		return err
 	}
@@ -543,6 +572,9 @@ func (w *Writer) writeRune(char rune) {
 }
 
 func (w *Writer) nl() error {
+	if w.compact {
+		return nil
+	}
 	if err := w.err(); err != nil {
 		return err
 	}

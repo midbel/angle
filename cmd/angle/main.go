@@ -147,6 +147,7 @@ func (c fmtCommand) Run(args []string) error {
 		defer c.Output.Close()
 	}
 	f := xml.NewFormatter(c.Output)
+	f.SetCompact(c.Compact)
 	return f.Format(r)
 }
 

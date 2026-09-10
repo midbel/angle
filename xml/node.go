@@ -80,8 +80,8 @@ func (n Name) Equal(other Name) bool {
 	return n.Local == other.Local && n.Namespace.Equal(other.Namespace)
 }
 
-func (n Name) LexicalName() string {
-	if n.Prefix == "" && n.URI == "" {
+func (n Name) ExpandedName() string {
+	if n.URI == "" {
 		return n.Local
 	}
 	return fmt.Sprintf("%s:%s", n.URI, n.Local)

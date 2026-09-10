@@ -8,6 +8,42 @@ import (
 	"unicode/utf8"
 )
 
+// type (
+// 	OnElementFunc func(Element) error
+// 	OnTextFunc func(Text) error
+// 	OnPiFunc func(PI) error
+// )
+
+// type Walker struct {
+// 	rs Reader
+// }
+
+// func NewWalker(r io.Reader) *Walker {
+// 	return &Walker{
+// 		rs: NewReader(r),
+// 	}
+// }
+
+// func (w *Walker) Walk() error {
+// 	return nil
+// }
+
+// func (w *Walker) OnElement(name Name, fn, OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnOpen(name Name, fn OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnClose(name Name, fn OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnPI(name Name, fn OnPIFunc) {
+
+// }
+
 type Encoder struct {
 	writer *Writer
 }

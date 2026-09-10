@@ -261,13 +261,18 @@ func (r *Reader) readStartElement(handler Handler) error {
 		NS:   el.NS,
 	}
 	r.pushContext(ctx)
-	r.updateElementName(&el)
+	if err := r.updateElementName(&el); err != nil {
+		return err
+	}
 
 	ctx.Name = el.Name
 	ctx.NS = el.NS
 	r.replaceTop(ctx)
 
 	if err := r.checkDuplicateAttributes(el); err != nil {
+		return err
+	}
+	if err := r.checkDuplicateNamespaces(el); err != nil {
 		return err
 	}
 
@@ -369,14 +374,25 @@ func (r *Reader) updateElementName(el *Element) error {
 	return nil
 }
 
-func (r *Reader) checkDuplicateAttributes(el Element) error {
+func (r *Reader) checkDuplicateNamespaces(el Element) error {
 	seen := make(map[string]struct{})
 	for _, a := range el.Attributes {
-		n := a.LexicalName()
+		n := a.ExpandedName()
 		if _, ok := seen[n]; ok {
 			return ErrAttribute
 		}
 		seen[n] = struct{}{}
+	}
+	return nil	
+}
+
+func (r *Reader) checkDuplicateAttributes(el Element) error {
+	seen := make(map[string]struct{})
+	for _, ns := range el.NS {
+		if _, ok := seen[ns.URI]; ok {
+			return ErrNamespace
+		}
+		seen[ns.URI] = struct{}{}
 	}
 	return nil
 }

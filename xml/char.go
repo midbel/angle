@@ -1,5 +1,17 @@
 package xml
 
+func IsXMLSpace(char rune) bool {
+	switch char {
+	case 0x20:
+	case 0x9:
+	case 0xD:
+	case 0xA:
+	default:
+		return false
+	}
+	return true
+}
+
 func IsValidString(str string) bool {
 	for _, c := range str {
 		if !IsValidChar(c) {

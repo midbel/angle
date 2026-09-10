@@ -1,5 +1,14 @@
 package xml
 
+func IsValidString(str string) bool {
+	for _, c := range str {
+		if !IsValidChar(c) {
+			return false
+		}
+	}
+	return true
+}
+
 func IsValidChar(r rune) bool {
 	switch {
 	case r == 0x09 || r == 0x0A || r == 0x0D:

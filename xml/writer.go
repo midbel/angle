@@ -2,8 +2,10 @@ package xml
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"strings"
+	"unicode/utf8"
 )
 
 type Encoder struct {
@@ -145,7 +147,7 @@ func (f *Formatter) OnText(t Text) error {
 }
 
 func (f *Formatter) OnComment(c Comment) error {
-	if f.isBlock() && f.offset > 0 {
+	if f.isBlock() {
 		if err := f.writer.NL(); err != nil {
 			return err
 		}
@@ -160,7 +162,7 @@ func (f *Formatter) OnComment(c Comment) error {
 }
 
 func (f *Formatter) OnPI(p PI) error {
-	if f.isBlock() && f.offset > 0 {
+	if f.isBlock() {
 		if err := f.writer.NL(); err != nil {
 			return err
 		}
@@ -355,6 +357,7 @@ type Writer struct {
 	stack   []Name
 
 	lastErr error
+	written int64
 }
 
 func NewWriter(w io.Writer) *Writer {
@@ -379,7 +382,7 @@ func (w *Writer) NL() error {
 }
 
 func (w *Writer) Indent(level int) error {
-	if w.compact {
+	if w.compact || w.written == 0 {
 		return nil
 	}
 	if err := w.err(); err != nil {
@@ -420,7 +423,6 @@ func (w *Writer) StartElement(name Name, attrs []Attribute, ns []Namespace) erro
 	if err := w.err(); err != nil {
 		return err
 	}
-	w.push(name)
 	w.writeRune(langle)
 	if err := w.writeName(name); err != nil {
 		return err
@@ -438,6 +440,7 @@ func (w *Writer) StartElement(name Name, attrs []Attribute, ns []Namespace) erro
 		}
 	}
 	w.writeRune(rangle)
+	w.push(name)
 	return w.err()
 }
 
@@ -446,7 +449,7 @@ func (w *Writer) CloseElement(name Name) error {
 		return err
 	}
 
-	last, ok := w.pop()
+	last, ok := w.top()
 	if !ok || !last.Equal(name) {
 		return ErrElement
 	}
@@ -457,6 +460,7 @@ func (w *Writer) CloseElement(name Name) error {
 		return err
 	}
 	w.writeRune(rangle)
+	w.pop()
 	return w.err()
 }
 
@@ -464,7 +468,7 @@ func (w *Writer) Text(text string) error {
 	if err := w.err(); err != nil {
 		return err
 	}
-	return w.writeString(text)
+	return w.writeString(escapeText(text))
 }
 
 func (w *Writer) Comment(comment string) error {
@@ -509,17 +513,22 @@ func (w *Writer) writeNamespace(ns Namespace) error {
 		return err
 	}
 	if ns.Prefix != "" {
+		if !IsValidName(ns.Prefix) {
+			w.lastErr = ErrSyntax
+			return w.err()
+		}
 		w.writeRune(colon)
 		if err := w.writeString(ns.Prefix); err != nil {
 			return err
 		}
 	}
+	quote := getQuote(ns.URI)
 	w.writeRune(equal)
-	w.writeRune(dquote)
-	if err := w.writeString(ns.URI); err != nil {
+	w.writeRune(quote)
+	if err := w.writeString(escapeString(ns.URI, quote)); err != nil {
 		return err
 	}
-	w.writeRune(dquote)
+	w.writeRune(quote)
 	return w.err()
 }
 
@@ -531,11 +540,12 @@ func (w *Writer) writeAttribute(attr Attribute) error {
 		return err
 	}
 	w.writeRune(equal)
-	w.writeRune(dquote)
-	if err := w.writeString(attr.Value); err != nil {
+	quote := getQuote(attr.Value)
+	w.writeRune(quote)
+	if err := w.writeString(escapeString(attr.Value, quote)); err != nil {
 		return err
 	}
-	w.writeRune(dquote)
+	w.writeRune(quote)
 	return w.err()
 }
 
@@ -544,11 +554,19 @@ func (w *Writer) writeName(name Name) error {
 		return err
 	}
 	if name.Prefix != "" {
+		if !IsValidName(name.Prefix) {
+			w.lastErr = ErrSyntax
+			return w.err()
+		}
 		err := w.writeString(name.Prefix)
 		if err != nil {
 			return err
 		}
 		w.writeRune(colon)
+	}
+	if !IsValidName(name.Local) {
+		w.lastErr = ErrSyntax
+		return w.err()
 	}
 	if err := w.writeString(name.Local); err != nil {
 		return err
@@ -560,7 +578,12 @@ func (w *Writer) writeString(str string) error {
 	if err := w.err(); err != nil {
 		return err
 	}
+	if !IsValidString(str) {
+		w.lastErr = ErrSyntax
+		return w.err()
+	}
 	_, w.lastErr = w.ws.WriteString(str)
+	w.update(int64(len(str)))
 	return w.lastErr
 }
 
@@ -568,11 +591,13 @@ func (w *Writer) writeRune(char rune) {
 	if err := w.err(); err != nil {
 		return
 	}
-	_, w.lastErr = w.ws.WriteRune(char)
+	var n int
+	n, w.lastErr = w.ws.WriteRune(char)
+	w.update(int64(n))
 }
 
 func (w *Writer) nl() error {
-	if w.compact {
+	if w.compact || w.written == 0 {
 		return nil
 	}
 	if err := w.err(); err != nil {
@@ -582,12 +607,30 @@ func (w *Writer) nl() error {
 	return w.err()
 }
 
+func (w *Writer) update(n int64) {
+	if w.lastErr == nil {
+		w.written += n
+	}
+}
+
 func (w *Writer) err() error {
 	return w.lastErr
 }
 
 func (w *Writer) push(name Name) {
 	w.stack = append(w.stack, name)
+}
+
+func (w *Writer) top() (Name, bool) {
+	var (
+		last Name
+		ok   bool
+	)
+	if x := len(w.stack); x > 0 {
+		ok = true
+		last = w.stack[x-1]
+	}
+	return last, ok
 }
 
 func (w *Writer) pop() (Name, bool) {
@@ -601,4 +644,61 @@ func (w *Writer) pop() (Name, bool) {
 		w.stack = w.stack[:x-1]
 	}
 	return last, ok
+}
+
+func getQuote(str string) rune {
+	quote := dquote
+	if strings.ContainsRune(str, quote) {
+		quote = squote
+	}
+	return quote
+}
+
+func escapeText(str string) string {
+	var buf bytes.Buffer
+	for i := 0; i < len(str); {
+		r, z := utf8.DecodeRuneInString(str[i:])
+		i += z
+
+		switch r {
+		case langle:
+			buf.WriteString("&lt;")
+		case ampersand:
+			buf.WriteString("&amp;")
+		default:
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
+}
+
+func escapeString(str string, quote rune) string {
+	var buf bytes.Buffer
+
+	for i := 0; i < len(str); {
+		r, size := utf8.DecodeRuneInString(str[i:])
+		i += size
+
+		switch r {
+		case langle:
+			buf.WriteString("&lt;")
+		case ampersand:
+			buf.WriteString("&amp;")
+		case squote:
+			if quote == squote {
+				buf.WriteString("&apos;")
+			} else {
+				buf.WriteRune(quote)
+			}
+		case dquote:
+			if quote == dquote {
+				buf.WriteString("&quot;")
+			} else {
+				buf.WriteRune(quote)
+			}
+		default:
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
 }

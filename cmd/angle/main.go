@@ -255,7 +255,7 @@ func (h *echoHandler) writeNL() {
 	h.ws.WriteRune('\n')
 }
 
-func (h *echoHandler) OnStartElement(el xml.Element) error {
+func (h *echoHandler) OnStartElement(el xml.Element, selfClosed bool) error {
 	defer h.enter()
 	h.writeIndent()
 	h.writeString("START")
@@ -332,7 +332,7 @@ func Build(r io.Reader) (*trellis.Node, error) {
 	return tb.root, rs.Read(&tb)
 }
 
-func (b *treeBuilder) OnStartElement(el xml.Element) error {
+func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 	node := &trellis.Node{
 		Value: fmt.Sprintf("element(%s)", el.QualifiedName()),
 	}

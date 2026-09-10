@@ -35,7 +35,7 @@ func (e Error) Unwrap() error {
 }
 
 type Handler interface {
-	OnStartElement(Element) error
+	OnStartElement(Element, bool) error
 	OnCloseElement(Name) error
 	OnText(Text) error
 	OnComment(Comment) error
@@ -66,7 +66,7 @@ func (b *Decoder) Decode() (*Document, error) {
 	return b.doc, b.reader.Read(b)
 }
 
-func (b *Decoder) OnStartElement(el Element) error {
+func (b *Decoder) OnStartElement(el Element, selfClosed bool) error {
 	if n := len(b.stack); n == 0 {
 		b.doc.Children = append(b.doc.Children, &el)
 	} else {
@@ -272,7 +272,7 @@ func (r *Reader) readStartElement(handler Handler) error {
 	}
 
 	r.next()
-	if err = handler.OnStartElement(el); err != nil {
+	if err = handler.OnStartElement(el, selfClosed); err != nil {
 		return err
 	}
 	if selfClosed {

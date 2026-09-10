@@ -104,7 +104,7 @@ func (f *Formatter) Format(r io.ReadSeeker) error {
 	return f.format(r)
 }
 
-func (f *Formatter) OnStartElement(e Element) error {
+func (f *Formatter) OnStartElement(e Element, selfClosed bool) error {
 	if f.offset >= len(f.stack) {
 		return ErrSyntax
 	}
@@ -298,7 +298,7 @@ func newLayoutHandler() *layoutHandler {
 	return &h
 }
 
-func (h *layoutHandler) OnStartElement(el Element) error {
+func (h *layoutHandler) OnStartElement(el Element, selfClosed bool) error {
 	n := &layoutItem{
 		Name: el.Name,
 	}

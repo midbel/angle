@@ -68,7 +68,7 @@ func (c scanCommand) Run(args []string) error {
 	defer r.Close()
 
 	for tok, err := range xml.Scan(r) {
-		fmt.Fprintf(cli.Stdout, "%-6s | %12s | %s", tok.Position, tok.Type, tok.Literal)
+		fmt.Fprintf(cli.Stdout, "%03d:%03d | %12s | %s", tok.Line, tok.Column, tok.Type, tok.Literal)
 		fmt.Fprintln(cli.Stdout)
 		if err != nil && !errors.Is(err, io.EOF) {
 			fmt.Fprintln(cli.Stderr, err)

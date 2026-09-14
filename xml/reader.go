@@ -80,7 +80,7 @@ func (b *Decoder) OnStartElement(el Element, selfClosed bool) error {
 
 func (b *Decoder) OnCloseElement(x Name) error {
 	if n := len(b.stack); n == 0 {
-		// TODO
+		return ErrElement
 	} else {
 		b.stack = b.stack[:n-1]
 	}
@@ -343,9 +343,10 @@ func (r *Reader) readCloseElement(handler Handler) error {
 	}
 	r.next()
 
-	if ctx, ok := r.popContext(); !ok || !ctx.Equal(name) {
+	if ctx, ok := r.topContext(); !ok || !ctx.Equal(name) {
 		return r.createError(ErrElement)
 	}
+	r.popContext()
 	return handler.OnCloseElement(name)
 }
 
@@ -411,7 +412,7 @@ func (r *Reader) updateElementName(el *Element) error {
 	return nil
 }
 
-func (r *Reader) checkDuplicateNamespaces(el Element) error {
+func (r *Reader) checkDuplicateAttributes(el Element) error {
 	seen := make(map[string]struct{})
 	for _, a := range el.Attributes {
 		n := a.ExpandedName()
@@ -423,13 +424,13 @@ func (r *Reader) checkDuplicateNamespaces(el Element) error {
 	return nil
 }
 
-func (r *Reader) checkDuplicateAttributes(el Element) error {
+func (r *Reader) checkDuplicateNamespaces(el Element) error {
 	seen := make(map[string]struct{})
 	for _, ns := range el.NS {
-		if _, ok := seen[ns.URI]; ok {
+		if _, ok := seen[ns.Prefix]; ok {
 			return ErrNamespace
 		}
-		seen[ns.URI] = struct{}{}
+		seen[ns.Prefix] = struct{}{}
 	}
 	return nil
 }
@@ -550,6 +551,18 @@ func (r *Reader) replaceTop(ctx context) {
 	if x := len(r.stack); x > 0 {
 		r.stack[x-1] = ctx
 	}
+}
+
+func (r *Reader) topContext() (context, bool) {
+	var (
+		ctx context
+		ok  bool
+	)
+	if x := len(r.stack); x > 0 {
+		ctx = r.stack[x-1]
+		ok = true
+	}
+	return ctx, ok
 }
 
 func (r *Reader) popContext() (context, bool) {

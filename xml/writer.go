@@ -49,6 +49,9 @@ func (e *Encoder) encodeNode(n Node) error {
 }
 
 func (e *Encoder) encodeElement(el *Element) error {
+	if len(el.Children) == 0 {
+		return e.writer.Empty(el.Name, el.Attributes, el.NS)
+	}
 	if err := e.writer.StartElement(el.Name, el.Attributes, el.NS); err != nil {
 		return err
 	}
@@ -108,25 +111,42 @@ func (f *Formatter) OnStartElement(e Element, selfClosed bool) error {
 	if f.offset >= len(f.stack) {
 		return ErrSyntax
 	}
-	item := f.stack[f.offset]
+	var (
+		item = f.stack[f.offset]
+		err  error
+	)
 	f.offset++
 	if f.isBlock() {
-		f.writer.NL()
-		f.writer.Indent(f.depth)
+		if err = f.writer.NL(); err != nil {
+			return err
+		}
+		if err = f.writer.Indent(f.depth); err != nil {
+			return err
+		}
 	}
-	err := f.writer.StartElement(e.Name, e.Attributes, e.NS)
+	if selfClosed {
+		err = f.writer.Empty(e.Name, e.Attributes, e.NS)
+	} else {
+		err = f.writer.StartElement(e.Name, e.Attributes, e.NS)
+	}
 	if err != nil {
 		return err
 	}
-	f.types = append(f.types, item.typeOf())
-	f.depth++
+	if !selfClosed {
+		f.types = append(f.types, item.typeOf())
+		f.depth++
+	}
 	return nil
 }
 
 func (f *Formatter) OnCloseElement(n Name) error {
 	if f.isBlock() {
-		f.writer.NL()
-		f.writer.Indent(f.depth - 1)
+		if err := f.writer.NL(); err != nil {
+			return err
+		}
+		if err := f.writer.Indent(f.depth - 1); err != nil {
+			return err
+		}
 	}
 	if err := f.writer.CloseElement(n); err != nil {
 		return err

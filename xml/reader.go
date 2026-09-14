@@ -72,7 +72,9 @@ func (b *Decoder) OnStartElement(el Element, selfClosed bool) error {
 	} else {
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &el)
 	}
-	b.stack = append(b.stack, &el)
+	if !selfClosed {
+		b.stack = append(b.stack, &el)
+	}
 	return nil
 }
 
@@ -111,6 +113,42 @@ func (b *Decoder) OnPI(p PI) error {
 	}
 	return nil
 }
+
+// type (
+// 	OnElementFunc func(Element) error
+// 	OnTextFunc func(Text) error
+// 	OnPiFunc func(PI) error
+// )
+
+// type Walker struct {
+// 	rs Reader
+// }
+
+// func NewWalker(r io.Reader) *Walker {
+// 	return &Walker{
+// 		rs: NewReader(r),
+// 	}
+// }
+
+// func (w *Walker) Walk() error {
+// 	return nil
+// }
+
+// func (w *Walker) OnElement(name Name, fn, OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnOpen(name Name, fn OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnClose(name Name, fn OnElementFunc) {
+
+// }
+
+// func (w *Walker) OnPI(name Name, fn OnPIFunc) {
+
+// }
 
 type context struct {
 	Name
@@ -281,7 +319,6 @@ func (r *Reader) readStartElement(handler Handler) error {
 		return err
 	}
 	if selfClosed {
-		err = handler.OnCloseElement(el.Name)
 		r.popContext()
 	}
 	return err
@@ -383,7 +420,7 @@ func (r *Reader) checkDuplicateNamespaces(el Element) error {
 		}
 		seen[n] = struct{}{}
 	}
-	return nil	
+	return nil
 }
 
 func (r *Reader) checkDuplicateAttributes(el Element) error {
@@ -534,7 +571,7 @@ func (r *Reader) checkDocumentWhitespace() error {
 			return r.syntaxError()
 		}
 		if r.is(TokText) {
-			str := strings.TrimSpace(r.currentLiteral())
+			str := strings.TrimFunc(r.currentLiteral(), IsXMLSpace)
 			if len(str) != 0 {
 				return r.syntaxError()
 			}
@@ -545,7 +582,7 @@ func (r *Reader) checkDocumentWhitespace() error {
 			return r.syntaxError()
 		}
 		if r.is(TokText) {
-			str := strings.TrimSpace(r.currentLiteral())
+			str := strings.TrimFunc(r.currentLiteral(), IsXMLSpace)
 			if len(str) != 0 {
 				return r.syntaxError()
 			}

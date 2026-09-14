@@ -256,9 +256,15 @@ func (h *echoHandler) writeNL() {
 }
 
 func (h *echoHandler) OnStartElement(el xml.Element, selfClosed bool) error {
-	defer h.enter()
+	if !selfClosed {
+		defer h.enter()
+	}
 	h.writeIndent()
-	h.writeString("START")
+	if selfClosed {
+		h.writeString("SELF")
+	} else {
+		h.writeString("START")
+	}
 	h.writeBlank()
 	h.writeString(el.ExpandedName())
 	h.writeNL()
@@ -289,7 +295,7 @@ func (h *echoHandler) OnText(t xml.Text) error {
 	h.writeIndent()
 	h.writeString("TEXT")
 	h.writeBlank()
-	h.writeString(strings.TrimSpace(t.Value))
+	h.writeString(strings.TrimFunc(t.Value, xml.IsXMLSpace))
 	h.writeNL()
 	return nil
 }
@@ -361,7 +367,9 @@ func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 		node.Nodes = append(node.Nodes, sub)
 	}
 	b.appendNode(node)
-	b.stack = append(b.stack, node)
+	if !selfClosed {
+		b.stack = append(b.stack, node)
+	}
 	return nil
 }
 

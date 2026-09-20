@@ -51,6 +51,12 @@ func IsValidName(str string) bool {
 	return true
 }
 
+func NewName(str string) Name {
+	return Name{
+		Local: str,
+	}
+}
+
 func ParseName(str string) (Name, error) {
 	valid := IsValidName(str)
 	if !valid {
@@ -98,6 +104,12 @@ type Document struct {
 	Children []Node
 }
 
+func NewDocument(root Node) *Document {
+	return &Document{
+		Children: []Node{root},
+	}
+}
+
 func (Document) Type() NodeType {
 	return DocumentNode
 }
@@ -109,6 +121,13 @@ type Element struct {
 	Children   []Node
 }
 
+func NewElement(name Name) Element {
+	el := Element{
+		Name: name,
+	}
+	return el
+}
+
 func (Element) Type() NodeType {
 	return ElementNode
 }
@@ -118,8 +137,21 @@ type Attribute struct {
 	Value string
 }
 
+func NewAttribute(name Name, value string) Attribute {
+	return Attribute{
+		Name:  name,
+		Value: value,
+	}
+}
+
 type Text struct {
 	Value string
+}
+
+func NewText(text string) Text {
+	return Text{
+		Value: text,
+	}
 }
 
 func (Text) Type() NodeType {
@@ -130,6 +162,12 @@ type Comment struct {
 	Value string
 }
 
+func NewComment(text string) Comment {
+	return Comment{
+		Value: text,
+	}
+}
+
 func (Comment) Type() NodeType {
 	return CommentNode
 }
@@ -137,6 +175,13 @@ func (Comment) Type() NodeType {
 type PI struct {
 	Name
 	Data string
+}
+
+func NewPI(name Name, data string) PI {
+	return PI{
+		Name: name,
+		Data: data,
+	}
 }
 
 func (PI) Type() NodeType {

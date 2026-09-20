@@ -28,19 +28,19 @@ func (e *Encoder) Encode(doc *Document) error {
 			return err
 		}
 	}
-	return nil
+	return e.writer.Flush()
 }
 
 func (e *Encoder) encodeNode(n Node) error {
 	var err error
 	switch n := n.(type) {
-	case *Element:
+	case Element:
 		err = e.encodeElement(n)
-	case *PI:
+	case PI:
 		err = e.encodePI(n)
-	case *Text:
+	case Text:
 		err = e.encodeText(n)
-	case *Comment:
+	case Comment:
 		err = e.encodeComment(n)
 	default:
 		err = ErrElement
@@ -48,7 +48,7 @@ func (e *Encoder) encodeNode(n Node) error {
 	return err
 }
 
-func (e *Encoder) encodeElement(el *Element) error {
+func (e *Encoder) encodeElement(el Element) error {
 	if len(el.Children) == 0 {
 		return e.writer.Empty(el.Name, el.Attributes, el.NS)
 	}
@@ -63,15 +63,15 @@ func (e *Encoder) encodeElement(el *Element) error {
 	return e.writer.CloseElement(el.Name)
 }
 
-func (e *Encoder) encodePI(pi *PI) error {
+func (e *Encoder) encodePI(pi PI) error {
 	return e.writer.PI(pi.Name, pi.Data)
 }
 
-func (e *Encoder) encodeText(txt *Text) error {
+func (e *Encoder) encodeText(txt Text) error {
 	return e.writer.Text(txt.Value)
 }
 
-func (e *Encoder) encodeComment(cmt *Comment) error {
+func (e *Encoder) encodeComment(cmt Comment) error {
 	return e.writer.Comment(cmt.Value)
 }
 

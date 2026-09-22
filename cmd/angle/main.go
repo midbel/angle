@@ -141,6 +141,7 @@ func (c fmtCommand) Run(args []string) error {
 		cli.FailIO(err)
 	}
 	defer r.Close()
+
 	if c.Output == nil {
 		c.Output = cli.Stdout
 	} else {
@@ -184,7 +185,7 @@ func (c treeCommand) Run(args []string) error {
 			Padding: trellis.PaddingS,
 		},
 	}
-	return trellis.CompactTree(cli.Stdout, root, &opts)
+	return trellis.Compact(cli.Stdout, root, &opts)
 }
 
 func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
@@ -304,7 +305,7 @@ func (h *echoHandler) OnComment(c xml.Comment) error {
 	h.writeIndent()
 	h.writeString("COMMENT")
 	h.writeBlank()
-	h.writeString(strings.TrimSpace(c.Value))
+	h.writeString(strings.TrimFunc(c.Value, xml.IsXMLSpace))
 	h.writeNL()
 	return nil
 }

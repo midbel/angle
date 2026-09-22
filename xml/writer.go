@@ -10,12 +10,16 @@ import (
 
 type Encoder struct {
 	writer *Writer
+	depth  int
+	types  []itemType
 }
 
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{
+	e := &Encoder{
 		writer: NewWriter(w),
 	}
+	e.reset()
+	return e
 }
 
 func (e *Encoder) SetCompact(compact bool) {
@@ -34,13 +38,13 @@ func (e *Encoder) Encode(doc *Document) error {
 func (e *Encoder) encodeNode(n Node) error {
 	var err error
 	switch n := n.(type) {
-	case Element:
+	case *Element:
 		err = e.encodeElement(n)
-	case PI:
+	case *PI:
 		err = e.encodePI(n)
-	case Text:
+	case *Text:
 		err = e.encodeText(n)
-	case Comment:
+	case *Comment:
 		err = e.encodeComment(n)
 	default:
 		err = ErrElement
@@ -48,31 +52,78 @@ func (e *Encoder) encodeNode(n Node) error {
 	return err
 }
 
-func (e *Encoder) encodeElement(el Element) error {
+func (e *Encoder) encodeElement(el *Element) error {
+	if e.isBlock() {
+		e.writer.NL()
+		e.writer.Indent(e.depth)
+	}
 	if len(el.Children) == 0 {
 		return e.writer.Empty(el.Name, el.Attributes, el.NS)
 	}
+	typ := typeFromChildren(el.Children)
+	e.depth++
 	if err := e.writer.StartElement(el.Name, el.Attributes, el.NS); err != nil {
 		return err
 	}
+	e.pushType(typ)
 	for _, n := range el.Children {
 		if err := e.encodeNode(n); err != nil {
 			return err
 		}
 	}
+	e.popType()
+	e.depth--
+	if typ.Block() {
+		e.writer.NL()
+		e.writer.Indent(e.depth)
+	}
 	return e.writer.CloseElement(el.Name)
 }
 
-func (e *Encoder) encodePI(pi PI) error {
+func (e *Encoder) encodePI(pi *PI) error {
+	e.writer.NL()
+	e.writer.Indent(e.depth)
 	return e.writer.PI(pi.Name, pi.Data)
 }
 
-func (e *Encoder) encodeText(txt Text) error {
+func (e *Encoder) encodeText(txt *Text) error {
+	str := strings.TrimFunc(txt.Value, IsXMLSpace)
+	if str == "" {
+		return nil
+	}
 	return e.writer.Text(txt.Value)
 }
 
-func (e *Encoder) encodeComment(cmt Comment) error {
+func (e *Encoder) encodeComment(cmt *Comment) error {
+	e.writer.NL()
+	e.writer.Indent(e.depth)
 	return e.writer.Comment(cmt.Value)
+}
+
+func (e *Encoder) pushType(it itemType) {
+	e.types = append(e.types, it)
+}
+
+func (e *Encoder) popType() itemType {
+	n := len(e.types)
+	if n <= 0 {
+		return typeBlock
+	}
+	it := e.types[n-1]
+	e.types = e.types[:n-1]
+	return it
+}
+
+func (e *Encoder) isBlock() bool {
+	if n := len(e.types); n == 0 || e.types[n-1].Block() {
+		return true
+	}
+	return false
+}
+
+func (e *Encoder) reset() {
+	e.types = []itemType{typeBlock}
+	e.depth = 0
 }
 
 type Formatter struct {
@@ -238,6 +289,47 @@ const (
 	typeInline
 	typeMixed
 )
+
+func onlyBlanks(n Node) bool {
+	t, ok := n.(*Text)
+	if !ok {
+		return false
+	}
+	str := strings.TrimFunc(t.Value, IsXMLSpace)
+	return len(str) == 0
+}
+
+func typeFromChildren(ns []Node) itemType {
+	var (
+		block  bool
+		inline bool
+	)
+	for _, n := range ns {
+		typ := typeFromNode(n)
+		switch typ {
+		case typeBlock:
+			block = true
+		case typeInline:
+			inline = true
+		}
+	}
+	if inline || !block {
+		return typeInline
+	}
+	return typeBlock
+}
+
+func typeFromNode(n Node) itemType {
+	switch n.Type() {
+	case TextNode:
+		if onlyBlanks(n) {
+			return typeBlock
+		}
+		return typeInline
+	default:
+		return typeBlock
+	}
+}
 
 func (i itemType) Block() bool {
 	return i == typeBlock

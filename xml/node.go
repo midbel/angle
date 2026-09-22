@@ -121,14 +121,13 @@ type Element struct {
 	Children   []Node
 }
 
-func NewElement(name Name) Element {
-	el := Element{
+func NewElement(name Name) *Element {
+	return &Element{
 		Name: name,
 	}
-	return el
 }
 
-func (Element) Type() NodeType {
+func (*Element) Type() NodeType {
 	return ElementNode
 }
 
@@ -148,13 +147,13 @@ type Text struct {
 	Value string
 }
 
-func NewText(text string) Text {
-	return Text{
+func NewText(text string) *Text {
+	return &Text{
 		Value: text,
 	}
 }
 
-func (Text) Type() NodeType {
+func (*Text) Type() NodeType {
 	return TextNode
 }
 
@@ -162,13 +161,13 @@ type Comment struct {
 	Value string
 }
 
-func NewComment(text string) Comment {
-	return Comment{
+func NewComment(text string) *Comment {
+	return &Comment{
 		Value: text,
 	}
 }
 
-func (Comment) Type() NodeType {
+func (*Comment) Type() NodeType {
 	return CommentNode
 }
 
@@ -177,13 +176,13 @@ type PI struct {
 	Data string
 }
 
-func NewPI(name Name, data string) PI {
-	return PI{
+func NewPI(name Name, data string) *PI {
+	return &PI{
 		Name: name,
 		Data: data,
 	}
 }
 
-func (PI) Type() NodeType {
+func (*PI) Type() NodeType {
 	return PINode
 }

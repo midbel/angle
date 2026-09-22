@@ -2,6 +2,7 @@ package svg
 
 import (
 	"io"
+	"strings"
 
 	"github.com/midbel/angle/xml"
 )
@@ -38,10 +39,9 @@ func (d *Document) Append(el Element) {
 func (d *Document) Element() xml.Node {
 	el := xml.NewElement(xml.NewName("svg"))
 	el.Attributes = []xml.Attribute{
-		xml.NewAttribute(xml.NewName("x"), f2s(d.x)),
-		xml.NewAttribute(xml.NewName("y"), f2s(d.y)),
 		xml.NewAttribute(xml.NewName("width"), f2s(d.width)),
 		xml.NewAttribute(xml.NewName("height"), f2s(d.height)),
+		xml.NewAttribute(xml.NewName("viewBox"), d.viewBox()),
 	}
 	ns := xml.Namespace{
 		Prefix: "",
@@ -64,4 +64,16 @@ func (d *Document) Move(x, y float64) *Document {
 	d.x = x
 	d.y = y
 	return d
+}
+
+func (d *Document) viewBox() string {
+	var str strings.Builder
+	str.WriteString(f2s(d.x))
+	str.WriteRune(' ')
+	str.WriteString(f2s(d.y))
+	str.WriteRune(' ')
+	str.WriteString(f2s(d.width))
+	str.WriteRune(' ')
+	str.WriteString(f2s(d.height))
+	return str.String()
 }

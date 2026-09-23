@@ -82,6 +82,10 @@ func (f Font) attributes() []xml.Attribute {
 	}
 }
 
+func (f Font) EstimateSize(text string) float64 {
+	return EstimateTextWidthForFont(text, f.family, f.size)
+}
+
 const DefaultFontSize = 14
 
 type textFactors struct {

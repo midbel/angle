@@ -1,10 +1,16 @@
 package svg
 
 import (
+	"errors"
 	"io"
 	"strings"
 
 	"github.com/midbel/angle/xml"
+)
+
+var (
+	ErrNegative = errors.New("negative value")
+	ErrRange    = errors.New("value out of range")
 )
 
 type Element interface {
@@ -12,17 +18,15 @@ type Element interface {
 }
 
 type Document struct {
-	x        float64
-	y        float64
-	width    float64
-	height   float64
+	origin   Point
+	size     Size
 	children []Element
 }
 
 func NewDocument(width, height float64) *Document {
 	return &Document{
-		width:  width,
-		height: height,
+		size:   NewSize(width, height),
+		origin: NewPoint(0, 0),
 	}
 }
 
@@ -37,17 +41,21 @@ func (d *Document) Append(el Element) {
 }
 
 func (d *Document) Element() xml.Node {
-	el := xml.NewElement(xml.NewName("svg"))
-	el.Attributes = []xml.Attribute{
-		xml.NewAttribute(xml.NewName("width"), f2s(d.width)),
-		xml.NewAttribute(xml.NewName("height"), f2s(d.height)),
+	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("viewBox"), d.viewBox()),
 	}
+	attrs = append(attrs, d.size.attributes()...)
+	attrs = append(attrs, d.origin.attributes()...)
+
 	ns := xml.Namespace{
 		Prefix: "",
 		URI:    "http://www.w3.org/2000/svg",
 	}
+
+	el := xml.NewElement(xml.NewName("svg"))
+	el.Attributes = cleanAttrs(attrs)
 	el.NS = append(el.NS, ns)
+
 	for _, c := range d.children {
 		el.Children = append(el.Children, c.Element())
 	}
@@ -55,25 +63,39 @@ func (d *Document) Element() xml.Node {
 }
 
 func (d *Document) Resize(width, height float64) *Document {
-	d.width = width
-	d.height = height
+	d.size.Resize(width, height)
 	return d
 }
 
 func (d *Document) Move(x, y float64) *Document {
-	d.x = x
-	d.y = y
+	d.origin.Move(x, y)
 	return d
 }
 
 func (d *Document) viewBox() string {
 	var str strings.Builder
-	str.WriteString(f2s(d.x))
+	str.WriteString(f2s(d.origin.x))
 	str.WriteRune(' ')
-	str.WriteString(f2s(d.y))
+	str.WriteString(f2s(d.origin.y))
 	str.WriteRune(' ')
-	str.WriteString(f2s(d.width))
+	str.WriteString(f2s(d.size.width))
 	str.WriteRune(' ')
-	str.WriteString(f2s(d.height))
+	str.WriteString(f2s(d.size.height))
 	return str.String()
+}
+
+type Group struct {
+	children []Element
+}
+
+func NewGroup() *Group {
+	return &Group{}
+}
+
+func (g *Group) Element() xml.Node {
+	el := xml.NewElement(xml.NewName("g"))
+	for _, c := range g.children {
+		el.Children = append(el.Children, c.Element())
+	}
+	return el
 }

@@ -13,25 +13,62 @@ const (
 	lineTo = 'L'
 )
 
-type point struct {
-	X    float64
-	Y    float64
+type Line struct {
+	start Point
+	end   Point
+
+	stroke Stroke
+}
+
+func NewLine(x1, y1, x2, y2 float64) *Line {
+	return &Line{
+		start: NewPoint(x1, y1),
+		end:   NewPoint(x2, y2),
+	}
+}
+
+func (i *Line) Element() xml.Node {
+	var attrs []xml.Attribute
+	attrs = append(attrs, i.startAttributes()...)
+	attrs = append(attrs, i.endAttributes()...)
+	attrs = append(attrs, i.stroke.attributes()...)
+	attrs = cleanAttrs(attrs)
+
+	el := xml.NewElement(xml.NewName("line"))
+	el.Attributes = attrs
+	return el
+}
+
+func (i *Line) startAttributes() []xml.Attribute {
+	return []xml.Attribute{
+		xml.NewAttribute(xml.NewName("x1"), f2s(i.start.x)),
+		xml.NewAttribute(xml.NewName("y1"), f2s(i.start.y)),
+	}
+}
+
+func (i *Line) endAttributes() []xml.Attribute {
+	return []xml.Attribute{
+		xml.NewAttribute(xml.NewName("x2"), f2s(i.end.x)),
+		xml.NewAttribute(xml.NewName("y2"), f2s(i.end.y)),
+	}
+}
+
+type step struct {
+	Point
 	move moveType
 }
 
 type Path struct {
-	points []point
+	steps []step
 
-	fill        string
-	stroke      string
-	strokeWidth float64
+	fill   string
+	stroke Stroke
 }
 
 func NewPath() *Path {
 	return &Path{
-		stroke:      Black,
-		strokeWidth: 1,
-		fill:        None,
+		stroke: NewStroke(Black, 1),
+		fill:   None,
 	}
 }
 
@@ -39,12 +76,9 @@ func (p *Path) Element() xml.Node {
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("d"), p.pathString()),
 		xml.NewAttribute(xml.NewName("fill"), p.fill),
-		xml.NewAttribute(xml.NewName("stroke"), p.stroke),
 	}
-	if p.strokeWidth > 0 {
-		a := xml.NewAttribute(xml.NewName("stroke-width"), f2s(p.strokeWidth))
-		attrs = append(attrs, a)
-	}
+	attrs = append(attrs, p.stroke.attributes()...)
+
 	el := xml.NewElement(xml.NewName("path"))
 	el.Attributes = cleanAttrs(attrs)
 	return el
@@ -52,36 +86,34 @@ func (p *Path) Element() xml.Node {
 
 func (p *Path) pathString() string {
 	var str strings.Builder
-	for i, p := range p.points {
+	for i, s := range p.steps {
 		if i > 0 {
 			str.WriteRune(' ')
 		}
-		str.WriteRune(rune(p.move))
+		str.WriteRune(rune(s.move))
 		str.WriteRune(' ')
-		str.WriteString(f2s(p.X))
+		str.WriteString(f2s(s.x))
 		str.WriteRune(' ')
-		str.WriteString(f2s(p.Y))
+		str.WriteString(f2s(s.y))
 	}
 	return str.String()
 }
 
 func (p *Path) MoveTo(x, y float64) *Path {
-	pt := point{
-		X:    x,
-		Y:    y,
-		move: moveTo,
+	pt := step{
+		Point: NewPoint(x, y),
+		move:  moveTo,
 	}
-	p.points = append(p.points, pt)
+	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) LineTo(x, y float64) *Path {
-	pt := point{
-		X:    x,
-		Y:    y,
-		move: lineTo,
+	pt := step{
+		Point: NewPoint(x, y),
+		move:  lineTo,
 	}
-	p.points = append(p.points, pt)
+	p.steps = append(p.steps, pt)
 	return p
 }
 
@@ -90,12 +122,7 @@ func (p *Path) Fill(fill string) *Path {
 	return p
 }
 
-func (p *Path) Stroke(stroke string) *Path {
+func (p *Path) Stroke(stroke Stroke) *Path {
 	p.stroke = stroke
-	return p
-}
-
-func (p *Path) StrokeWidth(width float64) *Path {
-	p.strokeWidth = width
 	return p
 }

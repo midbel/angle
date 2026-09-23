@@ -10,7 +10,7 @@ type Rect struct {
 
 	radius Radius
 
-	fill   string
+	fill   Color
 	stroke Stroke
 }
 
@@ -23,7 +23,7 @@ func NewRect(x, y, width, height float64) *Rect {
 
 func (r *Rect) Element() xml.Node {
 	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("fill"), r.fill),
+		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
 	}
 	attrs = append(attrs, r.origin.attributes()...)
 	attrs = append(attrs, r.size.attributes()...)
@@ -50,7 +50,7 @@ func (r *Rect) Radius(rx, ry float64) *Rect {
 	return r
 }
 
-func (r *Rect) Fill(fill string) *Rect {
+func (r *Rect) Fill(fill Color) *Rect {
 	r.fill = fill
 	return r
 }
@@ -64,7 +64,7 @@ type Circle struct {
 	origin Point
 	radius float64
 
-	fill   string
+	fill   Color
 	stroke Stroke
 }
 
@@ -85,7 +85,7 @@ func (c *Circle) Resize(r float64) *Circle {
 	return c
 }
 
-func (c *Circle) Fill(fill string) *Circle {
+func (c *Circle) Fill(fill Color) *Circle {
 	c.fill = fill
 	return c
 }
@@ -99,7 +99,7 @@ type Ellipse struct {
 	origin Point
 	radius Radius
 
-	fill   string
+	fill   Color
 	stroke Stroke
 }
 
@@ -120,7 +120,7 @@ func (e *Ellipse) Resize(rx, ry float64) *Ellipse {
 	return e
 }
 
-func (e *Ellipse) Fill(fill string) *Ellipse {
+func (e *Ellipse) Fill(fill Color) *Ellipse {
 	e.fill = fill
 	return e
 }

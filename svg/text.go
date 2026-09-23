@@ -10,7 +10,7 @@ type Text struct {
 
 	anchor string
 
-	fill string
+	fill Color
 	font Font
 }
 
@@ -25,7 +25,7 @@ func NewText(x, y float64, text string) *Text {
 
 func (t *Text) Element() xml.Node {
 	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("fill"), t.fill),
+		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
 		xml.NewAttribute(xml.NewName("anchor"), t.anchor),
 	}
 	attrs = append(attrs, t.origin.attributes()...)
@@ -47,7 +47,7 @@ func (t *Text) Anchor(anchor string) *Text {
 	return t
 }
 
-func (t *Text) Fill(fill string) *Text {
+func (t *Text) Fill(fill Color) *Text {
 	t.fill = fill
 	return t
 }
@@ -55,4 +55,8 @@ func (t *Text) Fill(fill string) *Text {
 func (t *Text) Font(font Font) *Text {
 	t.font = font
 	return t
+}
+
+func (t *Text) Width() float64 {
+	return t.font.EstimateWidth(t.value)
 }

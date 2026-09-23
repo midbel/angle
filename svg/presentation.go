@@ -8,9 +8,10 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
+const None  = "none"
+
 const (
-	None  = "none"
-	Black = "black"
+	Black Color = "black"
 )
 
 type Color string
@@ -22,7 +23,7 @@ func RGB(red, green, blue float64) (Color, error) {
 	if green < 0 || green > 255 {
 		return "", ErrRange
 	}
-	if blue < 0 || blue < 255 {
+	if blue < 0 || blue > 255 {
 		return "", ErrRange
 	}
 	str := fmt.Sprintf("rgb(%s, %s, %s)", f2s(red), f2s(green), f2s(blue))
@@ -31,10 +32,10 @@ func RGB(red, green, blue float64) (Color, error) {
 
 type Stroke struct {
 	width float64
-	color string
+	color Color
 }
 
-func NewStroke(color string, width float64) Stroke {
+func NewStroke(color Color, width float64) Stroke {
 	return Stroke{
 		width: width,
 		color: color,
@@ -44,7 +45,7 @@ func NewStroke(color string, width float64) Stroke {
 func (s Stroke) attributes() []xml.Attribute {
 	return []xml.Attribute{
 		xml.NewAttribute(xml.NewName("stroke-width"), f2s(s.width)),
-		xml.NewAttribute(xml.NewName("stroke"), s.color),
+		xml.NewAttribute(xml.NewName("stroke"), string(s.color)),
 	}
 }
 
@@ -82,7 +83,7 @@ func (f Font) attributes() []xml.Attribute {
 	}
 }
 
-func (f Font) EstimateSize(text string) float64 {
+func (f Font) EstimateWidth(text string) float64 {
 	return EstimateTextWidthForFont(text, f.family, f.size)
 }
 

@@ -6,13 +6,6 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
-type moveType rune
-
-const (
-	moveTo = 'M'
-	lineTo = 'L'
-)
-
 type Line struct {
 	start Point
 	end   Point
@@ -24,6 +17,7 @@ func NewLine(x1, y1, x2, y2 float64) *Line {
 	return &Line{
 		start: NewPoint(x1, y1),
 		end:   NewPoint(x2, y2),
+		stroke: NewStroke(Black, 1),
 	}
 }
 
@@ -53,9 +47,16 @@ func (i *Line) endAttributes() []xml.Attribute {
 	}
 }
 
+type pathCmd rune
+
+const (
+	moveTo pathCmd = 'M'
+	lineTo pathCmd = 'L'
+)
+
 type step struct {
 	Point
-	move moveType
+	move pathCmd
 }
 
 type Path struct {

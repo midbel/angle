@@ -15,13 +15,13 @@ type Line struct {
 
 func NewLine(x1, y1, x2, y2 float64) *Line {
 	return &Line{
-		start: NewPoint(x1, y1),
-		end:   NewPoint(x2, y2),
+		start:  NewPoint(x1, y1),
+		end:    NewPoint(x2, y2),
 		stroke: NewStroke(Black, 1),
 	}
 }
 
-func (i *Line) Element() xml.Node {
+func (i *Line) Element() (xml.Node, error) {
 	var attrs []xml.Attribute
 	attrs = append(attrs, i.startAttributes()...)
 	attrs = append(attrs, i.endAttributes()...)
@@ -30,7 +30,11 @@ func (i *Line) Element() xml.Node {
 
 	el := xml.NewElement(xml.NewName("line"))
 	el.Attributes = attrs
-	return el
+	return el, nil
+}
+
+func (i *Line) Validate() error {
+	return nil
 }
 
 func (i *Line) startAttributes() []xml.Attribute {
@@ -73,7 +77,7 @@ func NewPath() *Path {
 	}
 }
 
-func (p *Path) Element() xml.Node {
+func (p *Path) Element() (xml.Node, error) {
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("d"), p.pathString()),
 		xml.NewAttribute(xml.NewName("fill"), p.fill),
@@ -82,7 +86,11 @@ func (p *Path) Element() xml.Node {
 
 	el := xml.NewElement(xml.NewName("path"))
 	el.Attributes = cleanAttrs(attrs)
-	return el
+	return el, nil
+}
+
+func (p *Path) Validate() error {
+	return nil
 }
 
 func (p *Path) pathString() string {

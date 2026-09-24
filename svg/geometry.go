@@ -25,7 +25,7 @@ func (r *Radius) attributes() []xml.Attribute {
 
 func (r *Radius) Validate() error {
 	if r.x < 0 || r.y < 0 {
-		return ErrNegative
+		return negative("radius")
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func (p *Point) Move(x, y float64) {
 
 func (p *Point) Validate() error {
 	if p.x < 0 || p.y < 0 {
-		return ErrNegative
+		return negative("point")
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func (s *Size) Resize(width, height float64) {
 
 func (s *Size) Validate() error {
 	if s.width < 0 || s.height < 0 {
-		return ErrNegative
+		return negative("size")
 	}
 	return nil
 }

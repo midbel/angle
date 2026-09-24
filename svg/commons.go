@@ -1,8 +1,10 @@
 package svg
 
 import (
+	"fmt"
+	"errors"
 	"strings"
-	
+
 	"github.com/midbel/angle/xml"
 )
 
@@ -48,4 +50,17 @@ func (a *Attributes) attributes() []xml.Attribute {
 		xml.NewAttribute(xml.NewName("id"), a.id),
 		xml.NewAttribute(xml.NewName("class"), strings.Join(a.class, " ")),
 	}
+}
+
+var (
+	ErrNegative = errors.New("negative value")
+	ErrRange    = errors.New("out of range")
+)
+
+func negative(field string) error {
+	return fmt.Errorf("%s: can not have a %w", field, ErrNegative)
+}
+
+func outOfRange(field string) error {
+	return fmt.Errorf("%s: value is %w", field, ErrRange)
 }

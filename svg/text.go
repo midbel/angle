@@ -23,7 +23,7 @@ func NewText(x, y float64, text string) *Text {
 	}
 }
 
-func (t *Text) Element() xml.Node {
+func (t *Text) Element() (xml.Node, error) {
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
 		xml.NewAttribute(xml.NewName("anchor"), t.anchor),
@@ -34,7 +34,7 @@ func (t *Text) Element() xml.Node {
 	el := xml.NewElement(xml.NewName("text"))
 	el.Attributes = cleanAttrs(attrs)
 	el.Children = append(el.Children, xml.NewText(t.value))
-	return el
+	return el, nil
 }
 
 func (t *Text) Move(x, y float64) *Text {
@@ -59,4 +59,8 @@ func (t *Text) Font(font Font) *Text {
 
 func (t *Text) Width() float64 {
 	return t.font.EstimateWidth(t.value)
+}
+
+func (t *Text) Validate() error {
+	return nil
 }

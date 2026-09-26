@@ -54,13 +54,22 @@ func (i *Line) endAttributes() []xml.Attribute {
 type pathCmd rune
 
 const (
-	moveTo pathCmd = 'M'
-	lineTo pathCmd = 'L'
+	moveTo       pathCmd = 'M'
+	lineTo       pathCmd = 'L'
+	horizontalTo pathCmd = 'H'
+	verticalTo   pathCmd = 'V'
+	curveTo      pathCmd = 'C'
+	cubicTo      pathCmd = 'S'
+	quadraticTo  pathCmd = 'Q'
+	arcTo        pathCmd = 'A'
+	closePath    pathCmd = 'Z'
 )
 
 type step struct {
 	Point
-	move pathCmd
+	ctrl1 Point
+	ctrl2 Point
+	cmd pathCmd
 }
 
 type Path struct {
@@ -95,23 +104,82 @@ func (p *Path) Validate() error {
 
 func (p *Path) pathString() string {
 	var str strings.Builder
+
+	writePoint := func(pt Point) {
+		str.WriteString(f2s(pt.x))
+		str.WriteRune(' ')
+		str.WriteString(f2s(pt.y))
+	}
+
 	for i, s := range p.steps {
 		if i > 0 {
 			str.WriteRune(' ')
 		}
-		str.WriteRune(rune(s.move))
-		str.WriteRune(' ')
-		str.WriteString(f2s(s.x))
-		str.WriteRune(' ')
-		str.WriteString(f2s(s.y))
+		str.WriteRune(rune(s.cmd))
+		if s.cmd == closePath {
+			break
+		} else if s.cmd == curveTo {
+			str.WriteRune(' ')
+			writePoint(s.ctrl1)
+			str.WriteRune(' ')
+			writePoint(s.ctrl2)
+			str.WriteRune(' ')
+			writePoint(s.Point)
+		} else if s.cmd == horizontalTo {
+			str.WriteRune(' ')
+			str.WriteString(f2s(s.x))
+		} else if s.cmd == verticalTo {
+			str.WriteRune(' ')
+			str.WriteString(f2s(s.y))
+		} else {
+			str.WriteRune(' ')
+			writePoint(s.Point)
+		}
 	}
 	return str.String()
+}
+
+func (p *Path) Close() *Path {
+	pt := step{
+		cmd: closePath,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) Horizontal(x float64) *Path {
+	pt := step{
+		Point: NewPoint(x, 0),
+		cmd:   horizontalTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) Vertical(y float64) *Path {
+	pt := step{
+		Point: NewPoint(0, y),
+		cmd:   verticalTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) CurveTo(x, y, cx1, cy1, cx2, cy2 float64) *Path {
+	pt := step{
+		Point: NewPoint(x, y),
+		ctrl1: NewPoint(cx1, cy1),
+		ctrl2: NewPoint(cx2, cy2),
+		cmd:   curveTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
 }
 
 func (p *Path) MoveTo(x, y float64) *Path {
 	pt := step{
 		Point: NewPoint(x, y),
-		move:  moveTo,
+		cmd:   moveTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
@@ -120,7 +188,7 @@ func (p *Path) MoveTo(x, y float64) *Path {
 func (p *Path) LineTo(x, y float64) *Path {
 	pt := step{
 		Point: NewPoint(x, y),
-		move:  lineTo,
+		cmd:   lineTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p

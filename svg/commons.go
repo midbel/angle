@@ -1,8 +1,8 @@
 package svg
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/midbel/angle/xml"

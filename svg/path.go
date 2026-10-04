@@ -84,7 +84,7 @@ type Path struct {
 
 	steps []step
 
-	fill   string
+	fill   Color
 	stroke Stroke
 }
 
@@ -102,7 +102,7 @@ func (p *Path) Element() (xml.Node, error) {
 	}
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("d"), p.buildPath()),
-		xml.NewAttribute(xml.NewName("fill"), p.fill),
+		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
 	}
 	attrs = append(attrs, p.stroke.attributes()...)
 	attrs = append(attrs, p.Attributes.attributes()...)
@@ -208,7 +208,7 @@ func (p *Path) LineTo(x, y float64) *Path {
 	return p
 }
 
-func (p *Path) Fill(fill string) *Path {
+func (p *Path) Fill(fill Color) *Path {
 	p.fill = fill
 	return p
 }

@@ -5,6 +5,8 @@ import (
 )
 
 type Text struct {
+	*Attributes
+
 	origin Point
 	value  string
 
@@ -16,6 +18,7 @@ type Text struct {
 
 func NewText(x, y float64, text string) *Text {
 	return &Text{
+		Attributes: NewAttributes(),
 		origin: NewPoint(x, y),
 		value:  text,
 		fill:   Black,
@@ -24,12 +27,16 @@ func NewText(x, y float64, text string) *Text {
 }
 
 func (t *Text) Element() (xml.Node, error) {
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
 		xml.NewAttribute(xml.NewName("anchor"), t.anchor),
 	}
 	attrs = append(attrs, t.origin.attributes()...)
 	attrs = append(attrs, t.font.attributes()...)
+	attrs = append(attrs, t.Attributes.attributes()...)
 
 	el := xml.NewElement(xml.NewName("text"))
 	el.Attributes = cleanAttrs(attrs)

@@ -11,7 +11,6 @@ import (
 type Attributes struct {
 	id        string
 	class     []string
-	transform string
 	styles    map[string]string
 }
 
@@ -29,14 +28,6 @@ func (a *Attributes) Id(id string) *Attributes {
 
 func (a *Attributes) Class(class []string) *Attributes {
 	a.class = class
-	return a
-}
-
-func (a *Attributes) Translate(x, y float64) *Attributes {
-	return a
-}
-
-func (a *Attributes) Rotate(g float64) *Attributes {
 	return a
 }
 

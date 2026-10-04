@@ -13,6 +13,8 @@ type Element interface {
 }
 
 type Document struct {
+	*Attributes
+
 	origin   Point
 	size     Size
 	children []Element
@@ -20,6 +22,7 @@ type Document struct {
 
 func NewDocument(width, height float64) *Document {
 	return &Document{
+		Attributes: NewAttributes(),
 		size:   NewSize(width, height),
 		origin: NewPoint(0, 0),
 	}
@@ -34,7 +37,7 @@ func (d *Document) Render(w io.Writer) error {
 	return e.Encode(xml.NewDocument(doc))
 }
 
-func (d *Document) Append(el Element) {
+func (d *Document) Add(el Element) {
 	d.children = append(d.children, el)
 }
 
@@ -48,6 +51,7 @@ func (d *Document) Element() (xml.Node, error) {
 	}
 	attrs = append(attrs, d.size.attributes()...)
 	attrs = append(attrs, d.origin.attributes()...)
+	attrs = append(attrs, d.Attributes.attributes()...)
 
 	ns := xml.Namespace{
 		Prefix: "",
@@ -95,15 +99,23 @@ func (d *Document) viewBox() string {
 }
 
 type Group struct {
+	*Attributes
 	children []Element
 }
 
 func NewGroup() *Group {
-	return &Group{}
+	return &Group{
+		Attributes: NewAttributes(),
+	}
+}
+
+func (g *Group) Add(el Element) {
+	g.children = append(g.children, el)
 }
 
 func (g *Group) Element() (xml.Node, error) {
 	el := xml.NewElement(xml.NewName("g"))
+	el.Attributes = g.Attributes.attributes()
 	for _, c := range g.children {
 		sub, err := c.Element()
 		if err != nil {

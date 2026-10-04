@@ -48,9 +48,6 @@ func (p *Point) Move(x, y float64) {
 }
 
 func (p *Point) Validate() error {
-	if p.x < 0 || p.y < 0 {
-		return negative("point")
-	}
 	return nil
 }
 

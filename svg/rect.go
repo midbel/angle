@@ -5,6 +5,8 @@ import (
 )
 
 type Rect struct {
+	*Attributes
+
 	origin Point
 	size   Size
 
@@ -16,6 +18,7 @@ type Rect struct {
 
 func NewRect(x, y, width, height float64) *Rect {
 	return &Rect{
+		Attributes: NewAttributes(),
 		origin: NewPoint(x, y),
 		size:   NewSize(width, height),
 	}
@@ -29,6 +32,7 @@ func (r *Rect) Element() (xml.Node, error) {
 	attrs = append(attrs, r.size.attributes()...)
 	attrs = append(attrs, r.radius.attributes()...)
 	attrs = append(attrs, r.stroke.attributes()...)
+	attrs = append(attrs, r.Attributes.attributes()...)
 
 	el := xml.NewElement(xml.NewName("rect"))
 	el.Attributes = cleanAttrs(attrs)
@@ -65,6 +69,8 @@ func (r *Rect) Validate() error {
 }
 
 type Circle struct {
+	*Attributes
+
 	origin Point
 	radius float64
 
@@ -74,6 +80,7 @@ type Circle struct {
 
 func NewCircle(x, y, r float64) *Circle {
 	return &Circle{
+		Attributes: NewAttributes(),
 		origin: NewPoint(x, y),
 		radius: r,
 	}
@@ -100,6 +107,9 @@ func (c *Circle) Stroke(stroke Stroke) *Circle {
 }
 
 func (c *Circle) Element() (xml.Node, error) {
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -108,6 +118,8 @@ func (c *Circle) Validate() error {
 }
 
 type Ellipse struct {
+	*Attributes
+
 	origin Point
 	radius Radius
 
@@ -117,6 +129,7 @@ type Ellipse struct {
 
 func NewEllipse(x, y, rx, ry float64) *Ellipse {
 	return &Ellipse{
+		Attributes: NewAttributes(),
 		origin: NewPoint(x, y),
 		radius: NewRadius(rx, ry),
 	}
@@ -142,7 +155,10 @@ func (e *Ellipse) Stroke(stroke Stroke) *Ellipse {
 	return e
 }
 
-func (c *Ellipse) Element() (xml.Node, error) {
+func (e *Ellipse) Element() (xml.Node, error) {
+	if err := e.Validate(); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 

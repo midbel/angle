@@ -7,6 +7,8 @@ import (
 )
 
 type Line struct {
+	*Attributes
+
 	start Point
 	end   Point
 
@@ -15,6 +17,7 @@ type Line struct {
 
 func NewLine(x1, y1, x2, y2 float64) *Line {
 	return &Line{
+		Attributes: NewAttributes(),
 		start:  NewPoint(x1, y1),
 		end:    NewPoint(x2, y2),
 		stroke: NewStroke(Black, 1),
@@ -22,10 +25,14 @@ func NewLine(x1, y1, x2, y2 float64) *Line {
 }
 
 func (i *Line) Element() (xml.Node, error) {
+	if err := i.Validate(); err != nil {
+		return nil, err
+	}
 	var attrs []xml.Attribute
 	attrs = append(attrs, i.startAttributes()...)
 	attrs = append(attrs, i.endAttributes()...)
 	attrs = append(attrs, i.stroke.attributes()...)
+	attrs = append(attrs, i.Attributes.attributes()...)
 	attrs = cleanAttrs(attrs)
 
 	el := xml.NewElement(xml.NewName("line"))
@@ -73,6 +80,8 @@ type step struct {
 }
 
 type Path struct {
+	*Attributes
+
 	steps []step
 
 	fill   string
@@ -81,17 +90,22 @@ type Path struct {
 
 func NewPath() *Path {
 	return &Path{
+		Attributes: NewAttributes(),
 		stroke: NewStroke(Black, 1),
 		fill:   None,
 	}
 }
 
 func (p *Path) Element() (xml.Node, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
 	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("d"), p.pathString()),
+		xml.NewAttribute(xml.NewName("d"), p.buildPath()),
 		xml.NewAttribute(xml.NewName("fill"), p.fill),
 	}
 	attrs = append(attrs, p.stroke.attributes()...)
+	attrs = append(attrs, p.Attributes.attributes()...)
 
 	el := xml.NewElement(xml.NewName("path"))
 	el.Attributes = cleanAttrs(attrs)
@@ -102,7 +116,7 @@ func (p *Path) Validate() error {
 	return nil
 }
 
-func (p *Path) pathString() string {
+func (p *Path) buildPath() string {
 	var str strings.Builder
 
 	writePoint := func(pt Point) {
@@ -117,7 +131,7 @@ func (p *Path) pathString() string {
 		}
 		str.WriteRune(rune(s.cmd))
 		if s.cmd == closePath {
-			break
+			// pass
 		} else if s.cmd == curveTo {
 			str.WriteRune(' ')
 			writePoint(s.ctrl1)

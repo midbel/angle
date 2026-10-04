@@ -9,9 +9,9 @@ import (
 )
 
 type Attributes struct {
-	id        string
-	class     []string
-	styles    map[string]string
+	id     string
+	class  []string
+	styles map[string]string
 }
 
 func NewAttributes() *Attributes {

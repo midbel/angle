@@ -19,8 +19,8 @@ type Rect struct {
 func NewRect(x, y, width, height float64) *Rect {
 	return &Rect{
 		Attributes: NewAttributes(),
-		origin: NewPoint(x, y),
-		size:   NewSize(width, height),
+		origin:     NewPoint(x, y),
+		size:       NewSize(width, height),
 	}
 }
 
@@ -84,8 +84,8 @@ type Circle struct {
 func NewCircle(x, y, r float64) *Circle {
 	return &Circle{
 		Attributes: NewAttributes(),
-		origin: NewPoint(x, y),
-		radius: r,
+		origin:     NewPoint(x, y),
+		radius:     r,
 	}
 }
 
@@ -134,8 +134,8 @@ type Ellipse struct {
 func NewEllipse(x, y, rx, ry float64) *Ellipse {
 	return &Ellipse{
 		Attributes: NewAttributes(),
-		origin: NewPoint(x, y),
-		radius: NewRadius(rx, ry),
+		origin:     NewPoint(x, y),
+		radius:     NewRadius(rx, ry),
 	}
 }
 

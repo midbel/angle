@@ -23,8 +23,8 @@ type Document struct {
 func NewDocument(width, height float64) *Document {
 	return &Document{
 		Attributes: NewAttributes(),
-		size:   NewSize(width, height),
-		origin: NewPoint(0, 0),
+		size:       NewSize(width, height),
+		origin:     NewPoint(0, 0),
 	}
 }
 

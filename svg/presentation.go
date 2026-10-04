@@ -8,10 +8,9 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
-
 const (
 	Black Color = "black"
-	None Color = "none"
+	None  Color = "none"
 )
 
 type Color string
@@ -31,9 +30,9 @@ func RGB(red, green, blue int) (Color, error) {
 }
 
 type Stroke struct {
-	width float64
-	color Color
-	lineCap string
+	width    float64
+	color    Color
+	lineCap  string
 	lineJoin string
 }
 

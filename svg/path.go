@@ -18,9 +18,9 @@ type Line struct {
 func NewLine(x1, y1, x2, y2 float64) *Line {
 	return &Line{
 		Attributes: NewAttributes(),
-		start:  NewPoint(x1, y1),
-		end:    NewPoint(x2, y2),
-		stroke: NewStroke(Black, 1),
+		start:      NewPoint(x1, y1),
+		end:        NewPoint(x2, y2),
+		stroke:     NewStroke(Black, 1),
 	}
 }
 
@@ -76,7 +76,7 @@ type step struct {
 	Point
 	ctrl1 Point
 	ctrl2 Point
-	cmd pathCmd
+	cmd   pathCmd
 }
 
 type Path struct {
@@ -91,8 +91,8 @@ type Path struct {
 func NewPath() *Path {
 	return &Path{
 		Attributes: NewAttributes(),
-		stroke: NewStroke(Black, 1),
-		fill:   None,
+		stroke:     NewStroke(Black, 1),
+		fill:       None,
 	}
 }
 

@@ -19,10 +19,10 @@ type Text struct {
 func NewText(x, y float64, text string) *Text {
 	return &Text{
 		Attributes: NewAttributes(),
-		origin: NewPoint(x, y),
-		value:  text,
-		fill:   Black,
-		font:   NewFont(DefaultFontSize, SansSerif, WeightNormal),
+		origin:     NewPoint(x, y),
+		value:      text,
+		fill:       Black,
+		font:       NewFont(DefaultFontSize, SansSerif, WeightNormal),
 	}
 }
 

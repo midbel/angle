@@ -73,6 +73,11 @@ func (d *Document) Element() (xml.Node, error) {
 }
 
 func (d *Document) Validate() error {
+	for _, e := range d.children {
+		if err := e.Validate(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -114,6 +119,9 @@ func (g *Group) Add(el Element) {
 }
 
 func (g *Group) Element() (xml.Node, error) {
+	if err := g.Validate(); err != nil {
+		return nil, err
+	}
 	el := xml.NewElement(xml.NewName("g"))
 	el.Attributes = g.Attributes.attributes()
 	for _, c := range g.children {
@@ -124,4 +132,13 @@ func (g *Group) Element() (xml.Node, error) {
 		el.Children = append(el.Children, sub)
 	}
 	return el, nil
+}
+
+func (g *Group) Validate() error {
+	for _, e := range g.children {
+		if err := e.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

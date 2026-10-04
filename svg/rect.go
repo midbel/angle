@@ -25,6 +25,9 @@ func NewRect(x, y, width, height float64) *Rect {
 }
 
 func (r *Rect) Element() (xml.Node, error) {
+	if err := r.Validate(); err != nil {
+		return nil, err
+	}
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
 	}
@@ -110,7 +113,8 @@ func (c *Circle) Element() (xml.Node, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	el := xml.NewElement(xml.NewName("circle"))
+	return el, nil
 }
 
 func (c *Circle) Validate() error {
@@ -159,7 +163,8 @@ func (e *Ellipse) Element() (xml.Node, error) {
 	if err := e.Validate(); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	el := xml.NewElement(xml.NewName("ellipsis"))
+	return el, nil
 }
 
 func (e *Ellipse) Validate() error {

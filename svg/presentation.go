@@ -73,6 +73,8 @@ const (
 	WeightLighter = "lighter"
 )
 
+const defaultSize = 12
+
 type Font struct {
 	size   float64
 	weight string
@@ -80,6 +82,9 @@ type Font struct {
 }
 
 func NewFont(size float64, family, weight string) Font {
+	if size == 0 {
+		size = defaultSize
+	}
 	return Font{
 		size:   size,
 		weight: weight,

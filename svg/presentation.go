@@ -135,10 +135,10 @@ func (t textFactors) Coeff(r rune) float64 {
 
 var factors = map[string]textFactors{
 	SansSerif: {
-		Default: 0.53,
+		Default: 0.50,
 		Space:   0.28,
-		Narrow:  0.32,
-		Wide:    0.88,
+		Narrow:  0.30,
+		Wide:    0.83,
 	},
 	Helvetica: {
 		Default: 0.52,

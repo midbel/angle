@@ -76,9 +76,12 @@ const (
 const defaultSize = 12
 
 type Font struct {
-	size   float64
-	weight string
-	family string
+	size      float64
+	weight    string
+	family    string
+	style     string
+	underline bool
+	striked   bool
 }
 
 func NewFont(size float64, family, weight string) Font {
@@ -89,6 +92,7 @@ func NewFont(size float64, family, weight string) Font {
 		size:   size,
 		weight: weight,
 		family: family,
+		style:  "normal",
 	}
 }
 
@@ -99,12 +103,42 @@ func (f Font) Validate() error {
 	return nil
 }
 
+func (f Font) Italic() Font {
+	f.style = "italic"
+	return f
+}
+
+func (f Font) Normal() Font {
+	f.style = "normal"
+	return f
+}
+
+func (f Font) Underline() Font {
+	f.underline = true
+	return f
+}
+
+func (f Font) StrikeThrought() Font {
+	f.striked = true
+	return f
+}
+
 func (f Font) attributes() []xml.Attribute {
-	return []xml.Attribute{
+	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("font-size"), f2s(f.size)),
 		xml.NewAttribute(xml.NewName("font-weight"), f.weight),
 		xml.NewAttribute(xml.NewName("font-family"), f.family),
+		xml.NewAttribute(xml.NewName("font-style"), f.style),
 	}
+	if f.underline {
+		a := xml.NewAttribute(xml.NewName("text-decoration"), "underline")
+		attrs = append(attrs, a)
+	}
+	if f.striked {
+		a := xml.NewAttribute(xml.NewName("text-decoration"), "line-throught")
+		attrs = append(attrs, a)
+	}
+	return attrs
 }
 
 func (f Font) EstimateWidth(text string) float64 {

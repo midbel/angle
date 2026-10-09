@@ -114,12 +114,12 @@ func (c *Circle) Element() (xml.Node, error) {
 		return nil, err
 	}
 	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
-		xml.NewAttribute(xml.NewName("r"), f2s(r.radius)),
+		xml.NewAttribute(xml.NewName("fill"), string(c.fill)),
+		xml.NewAttribute(xml.NewName("r"), f2s(c.radius)),
 	}
-	attrs = append(attrs, r.origin.attributes()...)
-	attrs = append(attrs, r.stroke.attributes()...)
-	attrs = append(attrs, r.Attributes.attributes()...)
+	attrs = append(attrs, c.origin.attributes()...)
+	attrs = append(attrs, c.stroke.attributes()...)
+	attrs = append(attrs, c.Attributes.attributes()...)
 
 	el := xml.NewElement(xml.NewName("circle"))
 	el.Attributes = cleanAttrs(attrs)
@@ -169,16 +169,16 @@ func (e *Ellipse) Stroke(stroke Stroke) *Ellipse {
 }
 
 func (e *Ellipse) Element() (xml.Node, error) {
-	if err := c.Validate(); err != nil {
+	if err := e.Validate(); err != nil {
 		return nil, err
 	}
 	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
+		xml.NewAttribute(xml.NewName("fill"), string(e.fill)),
 	}
-	attrs = append(attrs, r.origin.attributes()...)
-	attrs = append(attrs, r.radius.attributes()...)
-	attrs = append(attrs, r.stroke.attributes()...)
-	attrs = append(attrs, r.Attributes.attributes()...)
+	attrs = append(attrs, e.origin.attributes()...)
+	attrs = append(attrs, e.radius.attributes()...)
+	attrs = append(attrs, e.stroke.attributes()...)
+	attrs = append(attrs, e.Attributes.attributes()...)
 
 	el := xml.NewElement(xml.NewName("ellipse"))
 	el.Attributes = cleanAttrs(attrs)

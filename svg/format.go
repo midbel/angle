@@ -2,8 +2,8 @@ package svg
 
 import (
 	"slices"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/midbel/angle/xml"
 )

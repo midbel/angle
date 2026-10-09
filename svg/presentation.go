@@ -31,6 +31,8 @@ func RGB(red, green, blue int) (Color, error) {
 
 type Stroke struct {
 	width    float64
+	opacity  float64
+	array    []float64
 	color    Color
 	lineCap  string
 	lineJoin string
@@ -40,8 +42,6 @@ func NewStroke(color Color, width float64) Stroke {
 	return Stroke{
 		width: width,
 		color: color,
-		// lineCap: "round",
-		// lineJoin: "round",
 	}
 }
 
@@ -52,9 +52,21 @@ func (s Stroke) Validate() error {
 	return nil
 }
 
+func (s Stroke) Opacity(val float64) Stroke {
+	s.opacity = val
+	return s
+}
+
+func (s Stroke) Array(n ...float64) Stroke {
+	s.array = n[:]
+	return s
+}
+
 func (s Stroke) attributes() []xml.Attribute {
 	return []xml.Attribute{
 		xml.NewAttribute(xml.NewName("stroke-width"), f2s(s.width)),
+		xml.NewAttribute(xml.NewName("stroke-opacity"), f2s(s.opacity)),
+		xml.NewAttribute(xml.NewName("stroke-dasharray"), af2s(s.array)),
 		xml.NewAttribute(xml.NewName("stroke"), string(s.color)),
 		xml.NewAttribute(xml.NewName("stroke-linecap"), string(s.lineCap)),
 		xml.NewAttribute(xml.NewName("stroke-linejoin"), string(s.lineJoin)),

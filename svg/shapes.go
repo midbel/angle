@@ -113,7 +113,16 @@ func (c *Circle) Element() (xml.Node, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
+	attrs := []xml.Attribute{
+		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
+		xml.NewAttribute(xml.NewName("r"), f2s(r.radius)),
+	}
+	attrs = append(attrs, r.origin.attributes()...)
+	attrs = append(attrs, r.stroke.attributes()...)
+	attrs = append(attrs, r.Attributes.attributes()...)
+
 	el := xml.NewElement(xml.NewName("circle"))
+	el.Attributes = cleanAttrs(attrs)
 	return el, nil
 }
 
@@ -160,10 +169,19 @@ func (e *Ellipse) Stroke(stroke Stroke) *Ellipse {
 }
 
 func (e *Ellipse) Element() (xml.Node, error) {
-	if err := e.Validate(); err != nil {
+	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	el := xml.NewElement(xml.NewName("ellipsis"))
+	attrs := []xml.Attribute{
+		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
+	}
+	attrs = append(attrs, r.origin.attributes()...)
+	attrs = append(attrs, r.radius.attributes()...)
+	attrs = append(attrs, r.stroke.attributes()...)
+	attrs = append(attrs, r.Attributes.attributes()...)
+
+	el := xml.NewElement(xml.NewName("ellipse"))
+	el.Attributes = cleanAttrs(attrs)
 	return el, nil
 }
 

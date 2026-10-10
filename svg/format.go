@@ -14,6 +14,13 @@ func f2s(val float64) string {
 	return strconv.FormatFloat(val, 'f', -1, 64)
 }
 
+func b2s(val bool) string {
+	if val {
+		return "1"
+	}
+	return "0"
+}
+
 func af2s(values []float64) string {
 	list := make([]string, len(values))
 	for i := range values {

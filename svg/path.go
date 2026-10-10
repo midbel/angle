@@ -247,7 +247,7 @@ func (p *Path) ArcTo(x, y, rx, ry, rotation float64, large, sweep bool) *Path {
 	pt := arcTo{
 		Point:     NewPoint(x, y),
 		rotation:  rotation,
-		radius:    NewRadius(rx, ry),
+		radius:    NewPoint(rx, ry),
 		largeArc:  large,
 		sweepFlag: sweep,
 	}
@@ -404,7 +404,7 @@ func (quadraticTo) Command() pathCmd {
 
 type arcTo struct {
 	Point
-	radius    Radius
+	radius    Point
 	rotation  float64
 	largeArc  bool
 	sweepFlag bool
@@ -412,6 +412,15 @@ type arcTo struct {
 
 func (c arcTo) String() string {
 	var str strings.Builder
+	str.WriteString(writePoint(c.radius))
+	str.WriteRune(' ')
+	str.WriteString(f2s(c.rotation))
+	str.WriteRune(' ')
+	str.WriteString(b2s(c.largeArc))
+	str.WriteRune(' ')
+	str.WriteString(b2s(c.largeArc))
+	str.WriteRune(' ')
+	str.WriteString(writePoint(c.Point))
 	return str.String()
 }
 

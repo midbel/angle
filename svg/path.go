@@ -136,7 +136,7 @@ func (p Polyline) getPoints() string {
 type Path struct {
 	*Attributes
 
-	steps []step
+	steps []command
 
 	fill   Color
 	stroke Stroke
@@ -173,7 +173,7 @@ func (p *Path) Validate() error {
 	if len(p.steps) == 0 {
 		return fmt.Errorf("empty path - no commands")
 	}
-	if p.steps[0].cmd != moveTo {
+	if p.steps[0].Command() != cmdMoveTo {
 		return fmt.Errorf("invalid path - no move command")
 	}
 	return nil
@@ -182,114 +182,90 @@ func (p *Path) Validate() error {
 func (p *Path) buildPath() string {
 	var str strings.Builder
 
-	writePoint := func(pt Point) {
-		str.WriteString(f2s(pt.x))
-		str.WriteRune(' ')
-		str.WriteString(f2s(pt.y))
-	}
-
 	for i, s := range p.steps {
 		if i > 0 {
 			str.WriteRune(' ')
 		}
-		str.WriteRune(rune(s.cmd))
-		if s.cmd == closePath {
-			// pass
-		} else if s.cmd == curveTo {
-			str.WriteRune(' ')
-			writePoint(s.ctrl1)
-			str.WriteRune(' ')
-			writePoint(s.ctrl2)
-			str.WriteRune(' ')
-			writePoint(s.Point)
-		} else if s.cmd == horizontalTo {
-			str.WriteRune(' ')
-			str.WriteString(f2s(s.x))
-		} else if s.cmd == verticalTo {
-			str.WriteRune(' ')
-			str.WriteString(f2s(s.y))
-		} else {
-			str.WriteRune(' ')
-			writePoint(s.Point)
-		}
+		str.WriteRune(rune(s.Command()))
+		str.WriteRune(' ')
+		str.WriteString(s.String())
 	}
 	return str.String()
 }
 
 func (p *Path) Close() *Path {
-	pt := step{
-		cmd: closePath,
-	}
+	var pt closeTo
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) Horizontal(x float64) *Path {
-	pt := step{
+	pt := horizontalTo{
 		Point: NewPoint(x, 0),
-		cmd:   horizontalTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) Vertical(y float64) *Path {
-	pt := step{
+	pt := verticalTo{
 		Point: NewPoint(0, y),
-		cmd:   verticalTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) CurveTo(x, y, cx1, cy1, cx2, cy2 float64) *Path {
-	pt := step{
+	pt := curveTo{
 		Point: NewPoint(x, y),
 		ctrl1: NewPoint(cx1, cy1),
 		ctrl2: NewPoint(cx2, cy2),
-		cmd:   curveTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) CubicTo(x, y, cx, cy float64) *Path {
-	pt := step{
-		cmd: cubicTo,
+	pt := cubicTo{
+		Point: NewPoint(x, y),
+		ctrl:  NewPoint(cx, cy),
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) QuadraticTo(x, y, cx, cy float64) *Path {
-	pt := step{
-		cmd: quadraticTo,
+	pt := quadraticTo{
+		Point: NewPoint(x, y),
+		ctrl:  NewPoint(cx, cy),
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
-func (p *Path) ArcTo(x, y, rx, ry float64, large, sweep bool) *Path {
-	pt := step{
-		cmd: arcTo,
+func (p *Path) ArcTo(x, y, rx, ry, rotation float64, large, sweep bool) *Path {
+	pt := arcTo{
+		Point:     NewPoint(x, y),
+		rotation:  rotation,
+		radius:    NewRadius(rx, ry),
+		largeArc:  large,
+		sweepFlag: sweep,
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) MoveTo(x, y float64) *Path {
-	pt := step{
+	pt := moveTo{
 		Point: NewPoint(x, y),
-		cmd:   moveTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
 }
 
 func (p *Path) LineTo(x, y float64) *Path {
-	pt := step{
+	pt := lineTo{
 		Point: NewPoint(x, y),
-		cmd:   lineTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p
@@ -308,20 +284,155 @@ func (p *Path) Stroke(stroke Stroke) *Path {
 type pathCmd rune
 
 const (
-	moveTo       pathCmd = 'M'
-	lineTo       pathCmd = 'L'
-	horizontalTo pathCmd = 'H'
-	verticalTo   pathCmd = 'V'
-	curveTo      pathCmd = 'C'
-	cubicTo      pathCmd = 'S'
-	quadraticTo  pathCmd = 'Q'
-	arcTo        pathCmd = 'A'
-	closePath    pathCmd = 'Z'
+	cmdMoveTo       pathCmd = 'M'
+	cmdLineTo       pathCmd = 'L'
+	cmdHorizontalTo pathCmd = 'H'
+	cmdVerticalTo   pathCmd = 'V'
+	cmdCurveTo      pathCmd = 'C'
+	cmdCubicTo      pathCmd = 'S'
+	cmdQuadraticTo  pathCmd = 'Q'
+	cmdArcTo        pathCmd = 'A'
+	cmdCloseTo      pathCmd = 'Z'
 )
 
-type step struct {
+type command interface {
+	String() string
+	Command() pathCmd
+}
+
+type moveTo struct {
+	Point
+}
+
+func (c moveTo) String() string {
+	return writePoint(c.Point)
+}
+
+func (moveTo) Command() pathCmd {
+	return cmdMoveTo
+}
+
+type lineTo struct {
+	Point
+}
+
+func (c lineTo) String() string {
+	return writePoint(c.Point)
+}
+
+func (lineTo) Command() pathCmd {
+	return cmdLineTo
+}
+
+type horizontalTo struct {
+	Point
+}
+
+func (c horizontalTo) String() string {
+	return writePoint(c.Point)
+}
+
+func (horizontalTo) Command() pathCmd {
+	return cmdHorizontalTo
+}
+
+type verticalTo struct {
+	Point
+}
+
+func (c verticalTo) String() string {
+	return writePoint(c.Point)
+}
+
+func (verticalTo) Command() pathCmd {
+	return cmdVerticalTo
+}
+
+type curveTo struct {
 	Point
 	ctrl1 Point
 	ctrl2 Point
-	cmd   pathCmd
+}
+
+func (c curveTo) String() string {
+	var str strings.Builder
+	str.WriteString(writePoint(c.ctrl1))
+	str.WriteRune(' ')
+	str.WriteString(writePoint(c.ctrl2))
+	str.WriteRune(' ')
+	str.WriteString(writePoint(c.Point))
+	return str.String()
+}
+
+func (curveTo) Command() pathCmd {
+	return cmdCurveTo
+}
+
+type cubicTo struct {
+	Point
+	ctrl Point
+}
+
+func (c cubicTo) String() string {
+	var str strings.Builder
+	str.WriteString(writePoint(c.ctrl))
+	str.WriteRune(' ')
+	str.WriteString(writePoint(c.Point))
+	return str.String()
+}
+
+func (cubicTo) Command() pathCmd {
+	return cmdCubicTo
+}
+
+type quadraticTo struct {
+	Point
+	ctrl Point
+}
+
+func (c quadraticTo) String() string {
+	var str strings.Builder
+	str.WriteString(writePoint(c.ctrl))
+	str.WriteRune(' ')
+	str.WriteString(writePoint(c.Point))
+	return str.String()
+}
+
+func (quadraticTo) Command() pathCmd {
+	return cmdQuadraticTo
+}
+
+type arcTo struct {
+	Point
+	radius    Radius
+	rotation  float64
+	largeArc  bool
+	sweepFlag bool
+}
+
+func (c arcTo) String() string {
+	var str strings.Builder
+	return str.String()
+}
+
+func (arcTo) Command() pathCmd {
+	return cmdArcTo
+}
+
+type closeTo struct{}
+
+func (c closeTo) String() string {
+	return ""
+}
+
+func (closeTo) Command() pathCmd {
+	return cmdCloseTo
+}
+
+func writePoint(pt Point) string {
+	var str strings.Builder
+	str.WriteString(f2s(pt.x))
+	str.WriteRune(' ')
+	str.WriteString(f2s(pt.y))
+	return str.String()
 }

@@ -2,6 +2,7 @@ package svg
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -68,25 +69,68 @@ func (i *Line) endAttributes() []xml.Attribute {
 	}
 }
 
-type pathCmd rune
+type Polyline struct {
+	*Attributes
 
-const (
-	moveTo       pathCmd = 'M'
-	lineTo       pathCmd = 'L'
-	horizontalTo pathCmd = 'H'
-	verticalTo   pathCmd = 'V'
-	curveTo      pathCmd = 'C'
-	cubicTo      pathCmd = 'S'
-	quadraticTo  pathCmd = 'Q'
-	arcTo        pathCmd = 'A'
-	closePath    pathCmd = 'Z'
-)
+	points []Point
+	fill   Color
+	stroke Stroke
+}
 
-type step struct {
-	Point
-	ctrl1 Point
-	ctrl2 Point
-	cmd   pathCmd
+func NewPolyline(points ...Point) Polyline {
+	return Polyline{
+		Attributes: NewAttributes(),
+		points:     slices.Clone(points),
+	}
+}
+
+func (p Polyline) Fill(fill Color) Polyline {
+	p.fill = fill
+	return p
+}
+
+func (p Polyline) Stroke(stroke Stroke) Polyline {
+	p.stroke = stroke
+	return p
+}
+
+func (p Polyline) Validate() error {
+	for i := range p.points {
+		if err := p.points[i].Validate(); err != nil {
+			return err
+		}
+	}
+	if err := p.stroke.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p Polyline) Element() (xml.Node, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	attrs := []xml.Attribute{
+		xml.NewAttribute(xml.NewName("points"), p.getPoints()),
+		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
+	}
+	attrs = append(attrs, p.stroke.attributes()...)
+	el := xml.NewElement(xml.NewName("polyline"))
+	el.Attributes = cleanAttrs(attrs)
+	return el, nil
+}
+
+func (p Polyline) getPoints() string {
+	var str strings.Builder
+	for i := range p.points {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(f2s(p.points[i].x))
+		str.WriteRune(' ')
+		str.WriteString(f2s(p.points[i].y))
+	}
+	return str.String()
 }
 
 type Path struct {
@@ -225,7 +269,7 @@ func (p *Path) QuadraticTo(x, y, cx, cy float64) *Path {
 	return p
 }
 
-func (p *Path) ArcTo(x, y, rx, ry, axis, rot float64) *Path {
+func (p *Path) ArcTo(x, y, rx, ry float64, large, sweep bool) *Path {
 	pt := step{
 		cmd: arcTo,
 	}
@@ -259,4 +303,25 @@ func (p *Path) Fill(fill Color) *Path {
 func (p *Path) Stroke(stroke Stroke) *Path {
 	p.stroke = stroke
 	return p
+}
+
+type pathCmd rune
+
+const (
+	moveTo       pathCmd = 'M'
+	lineTo       pathCmd = 'L'
+	horizontalTo pathCmd = 'H'
+	verticalTo   pathCmd = 'V'
+	curveTo      pathCmd = 'C'
+	cubicTo      pathCmd = 'S'
+	quadraticTo  pathCmd = 'Q'
+	arcTo        pathCmd = 'A'
+	closePath    pathCmd = 'Z'
+)
+
+type step struct {
+	Point
+	ctrl1 Point
+	ctrl2 Point
+	cmd   pathCmd
 }

@@ -15,7 +15,6 @@ type Document struct {
 	*Attributes
 
 	origin   Point
-	size     Size
 	box      ViewBox
 	children []Element
 }
@@ -23,7 +22,7 @@ type Document struct {
 func NewDocument(width, height float64) *Document {
 	return &Document{
 		Attributes: NewAttributes(),
-		size:       NewSize(width, height),
+		box:        NewViewBox(0, 0, width, height),
 		origin:     NewPoint(0, 0),
 	}
 }
@@ -48,7 +47,6 @@ func (d *Document) Element() (xml.Node, error) {
 	var attrs []xml.Attribute
 
 	attrs = append(attrs, d.box.attributes()...)
-	attrs = append(attrs, d.size.attributes()...)
 	attrs = append(attrs, d.origin.attributes()...)
 	attrs = append(attrs, d.Attributes.attributes()...)
 
@@ -75,7 +73,7 @@ func (d *Document) Validate() error {
 	if err := d.origin.Validate(); err != nil {
 		return err
 	}
-	if err := d.size.Validate(); err != nil {
+	if err := d.box.Validate(); err != nil {
 		return err
 	}
 	for _, e := range d.children {
@@ -84,11 +82,6 @@ func (d *Document) Validate() error {
 		}
 	}
 	return nil
-}
-
-func (d *Document) Resize(width, height float64) *Document {
-	d.size.Resize(width, height)
-	return d
 }
 
 func (d *Document) Move(x, y float64) *Document {

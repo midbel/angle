@@ -3,6 +3,8 @@ package svg
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -40,16 +42,27 @@ func (a *Attributes) attributes() []xml.Attribute {
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("id"), a.id),
 		xml.NewAttribute(xml.NewName("class"), strings.Join(a.class, " ")),
+		xml.NewAttribute(xml.NewName("style"), a.getStyles()),
 	}
-	var str strings.Builder
-	for k, v := range a.styles {
+	return attrs
+}
+
+func (a *Attributes) getStyles() string {
+	var (
+		keys = slices.Sorted(maps.Keys(a.styles))
+		str  strings.Builder
+	)
+	for _, k := range keys {
+		v := a.styles[k]
+		if v == "" {
+			continue
+		}
 		str.WriteString(k)
 		str.WriteRune(':')
 		str.WriteString(v)
 		str.WriteRune(';')
 	}
-	attrs = append(attrs, xml.NewAttribute(xml.NewName("style"), str.String()))
-	return attrs
+	return str.String()
 }
 
 var (

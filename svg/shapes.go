@@ -1,6 +1,9 @@
 package svg
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/midbel/angle/xml"
 )
 
@@ -81,6 +84,70 @@ func (r *Rect) Validate() error {
 		return err
 	}
 	return nil
+}
+
+type Polygon struct {
+	*Attributes
+
+	points []Point
+	fill   Color
+	stroke Stroke
+}
+
+func NewPolygon(points ...Point) Polygon {
+	return Polygon{
+		Attributes: NewAttributes(),
+		points:     slices.Clone(points),
+	}
+}
+
+func (p Polygon) Fill(fill Color) Polygon {
+	p.fill = fill
+	return p
+}
+
+func (p Polygon) Stroke(stroke Stroke) Polygon {
+	p.stroke = stroke
+	return p
+}
+
+func (p Polygon) Validate() error {
+	for i := range p.points {
+		if err := p.points[i].Validate(); err != nil {
+			return err
+		}
+	}
+	if err := p.stroke.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p Polygon) Element() (xml.Node, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	attrs := []xml.Attribute{
+		xml.NewAttribute(xml.NewName("points"), p.getPoints()),
+		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
+	}
+	attrs = append(attrs, p.stroke.attributes()...)
+	el := xml.NewElement(xml.NewName("polygon"))
+	el.Attributes = cleanAttrs(attrs)
+	return el, nil
+}
+
+func (p Polygon) getPoints() string {
+	var str strings.Builder
+	for i := range p.points {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(f2s(p.points[i].x))
+		str.WriteRune(' ')
+		str.WriteString(f2s(p.points[i].y))
+	}
+	return str.String()
 }
 
 type Circle struct {

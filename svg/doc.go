@@ -2,7 +2,6 @@ package svg
 
 import (
 	"io"
-	"strings"
 
 	"github.com/midbel/angle/xml"
 )
@@ -17,6 +16,7 @@ type Document struct {
 
 	origin   Point
 	size     Size
+	box      ViewBox
 	children []Element
 }
 
@@ -45,10 +45,9 @@ func (d *Document) Element() (xml.Node, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
+	var attrs []xml.Attribute
 
-	attrs := []xml.Attribute{
-		xml.NewAttribute(xml.NewName("viewBox"), d.viewBox()),
-	}
+	attrs = append(attrs, d.box.attributes()...)
 	attrs = append(attrs, d.size.attributes()...)
 	attrs = append(attrs, d.origin.attributes()...)
 	attrs = append(attrs, d.Attributes.attributes()...)
@@ -73,6 +72,12 @@ func (d *Document) Element() (xml.Node, error) {
 }
 
 func (d *Document) Validate() error {
+	if err := d.origin.Validate(); err != nil {
+		return err
+	}
+	if err := d.size.Validate(); err != nil {
+		return err
+	}
 	for _, e := range d.children {
 		if err := e.Validate(); err != nil {
 			return err
@@ -89,18 +94,6 @@ func (d *Document) Resize(width, height float64) *Document {
 func (d *Document) Move(x, y float64) *Document {
 	d.origin.Move(x, y)
 	return d
-}
-
-func (d *Document) viewBox() string {
-	var str strings.Builder
-	str.WriteString(f2s(d.origin.x))
-	str.WriteRune(' ')
-	str.WriteString(f2s(d.origin.y))
-	str.WriteRune(' ')
-	str.WriteString(f2s(d.size.width))
-	str.WriteRune(' ')
-	str.WriteString(f2s(d.size.height))
-	return str.String()
 }
 
 type Group struct {

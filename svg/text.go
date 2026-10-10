@@ -32,7 +32,7 @@ func (t *Text) Element() (xml.Node, error) {
 	}
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
-		xml.NewAttribute(xml.NewName("anchor"), t.anchor),
+		xml.NewAttribute(xml.NewName("text-anchor"), t.anchor),
 	}
 	attrs = append(attrs, t.origin.attributes()...)
 	attrs = append(attrs, t.font.attributes()...)
@@ -69,5 +69,11 @@ func (t *Text) Width() float64 {
 }
 
 func (t *Text) Validate() error {
+	if err := t.origin.Validate(); err != nil {
+		return err
+	}
+	if err := t.font.Validate(); err != nil {
+		return err
+	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package svg
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -41,6 +42,15 @@ func (i *Line) Element() (xml.Node, error) {
 }
 
 func (i *Line) Validate() error {
+	if err := i.start.Validate(); err != nil {
+		return err
+	}
+	if err := i.end.Validate(); err != nil {
+		return err
+	}
+	if err := i.stroke.Validate(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -113,6 +123,15 @@ func (p *Path) Element() (xml.Node, error) {
 }
 
 func (p *Path) Validate() error {
+	if err := p.stroke.Validate(); err != nil {
+		return err
+	}
+	if len(p.steps) == 0 {
+		return fmt.Errorf("empty path - no commands")
+	}
+	if p.steps[0].cmd != moveTo {
+		return fmt.Errorf("invalid path - no move command")
+	}
 	return nil
 }
 
@@ -185,6 +204,30 @@ func (p *Path) CurveTo(x, y, cx1, cy1, cx2, cy2 float64) *Path {
 		ctrl1: NewPoint(cx1, cy1),
 		ctrl2: NewPoint(cx2, cy2),
 		cmd:   curveTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) CubicTo(x, y, cx, cy float64) *Path {
+	pt := step{
+		cmd: cubicTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) QuadraticTo(x, y, cx, cy float64) *Path {
+	pt := step{
+		cmd: quadraticTo,
+	}
+	p.steps = append(p.steps, pt)
+	return p
+}
+
+func (p *Path) ArcTo(x, y, rx, ry, axis, rot float64) *Path {
+	pt := step{
+		cmd: arcTo,
 	}
 	p.steps = append(p.steps, pt)
 	return p

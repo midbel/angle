@@ -37,15 +37,25 @@ func (a *Attributes) Style(name, value string) *Attributes {
 }
 
 func (a *Attributes) attributes() []xml.Attribute {
-	return []xml.Attribute{
+	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("id"), a.id),
 		xml.NewAttribute(xml.NewName("class"), strings.Join(a.class, " ")),
 	}
+	var str strings.Builder
+	for k, v := range a.styles {
+		str.WriteString(k)
+		str.WriteRune(':')
+		str.WriteString(v)
+		str.WriteRune(';')
+	}
+	attrs = append(attrs, xml.NewAttribute(xml.NewName("style"), str.String()))
+	return attrs
 }
 
 var (
 	ErrNegative = errors.New("negative value")
 	ErrRange    = errors.New("out of range")
+	ErrNumber   = errors.New("invalid number")
 )
 
 func negative(field string) error {

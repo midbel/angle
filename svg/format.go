@@ -1,6 +1,8 @@
 package svg
 
 import (
+	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +20,16 @@ func af2s(values []float64) string {
 		list[i] = f2s(values[i])
 	}
 	return strings.Join(list, " ")
+}
+
+func isFinite(f float64) error {
+	if ok := math.IsInf(f, 0); ok {
+		return fmt.Errorf("%w: infinite not allowed", ErrNumber)
+	}
+	if ok := math.IsNaN(f); ok {
+		return fmt.Errorf("%w: not a number", ErrNumber)
+	}
+	return nil
 }
 
 func cleanAttrs(attrs []xml.Attribute) []xml.Attribute {

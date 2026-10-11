@@ -28,14 +28,7 @@ func EstimateTextWidth(str string, size float64) float64 {
 	return EstimateTextWidthForFont(str, SansSerif, size)
 }
 
-func EstimateSpacingWidth(spacing, size float64) float64 {
-	return spacing * defaultSpacingWidth * size
-}
-
-const (
-	defaultGlyphWidth   = 0.6
-	defaultSpacingWidth = 0.5
-)
+const defaultGlyphWidth   = 0.6
 
 var defaultGlyphMetrics = map[rune]float64{
 	// Lowercase

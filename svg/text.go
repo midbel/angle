@@ -11,6 +11,7 @@ type Text struct {
 	value  string
 
 	anchor string
+	baseline string
 
 	fill Color
 	font Font
@@ -33,6 +34,7 @@ func (t *Text) Element() (xml.Node, error) {
 	attrs := []xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
 		xml.NewAttribute(xml.NewName("text-anchor"), t.anchor),
+		xml.NewAttribute(xml.NewName("dominant-baseline"), t.baseline),
 	}
 	attrs = append(attrs, t.origin.attributes()...)
 	attrs = append(attrs, t.font.attributes()...)
@@ -46,6 +48,11 @@ func (t *Text) Element() (xml.Node, error) {
 
 func (t *Text) Move(x, y float64) *Text {
 	t.origin.Move(x, y)
+	return t
+}
+
+func (t *Text) Baseline(base string) *Text {
+	t.baseline = base
 	return t
 }
 

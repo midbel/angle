@@ -65,6 +65,49 @@ func (a *Attributes) getStyles() string {
 	return str.String()
 }
 
+type translate struct {
+	left float64
+	top  float64
+}
+
+func (t translate) String() string {
+	return fmt.Sprintf("translate(%f, %f)", t.left, t.top)
+}
+
+type rotate struct {
+	angle float64
+	origin Point
+}
+
+func (r rotate) String() string {
+	return fmt.Sprintf("rotate(%f)", r.angle)
+}
+
+type scale struct {
+	x float64
+	y float64
+}
+
+func (s scale) String() string {
+	return fmt.Sprintf("scale(%f, %f)", s.x, s.y)
+}
+
+type skewX struct {
+	degree float64
+}
+
+func (x skewX) String() string {
+	return fmt.Sprintf("skewX(%f)", x.degree)
+}
+
+type skewY struct {
+	degree float64
+}
+
+func (x skewY) String() string {
+	return fmt.Sprintf("skewY(%f)", x.degree)
+}
+
 var (
 	ErrNegative = errors.New("negative value")
 	ErrRange    = errors.New("out of range")

@@ -137,6 +137,31 @@ func NewElement(name Name) *Element {
 	}
 }
 
+func (e *Element) Value() string {
+	var content []string
+	for _, c := range e.Children {
+		if t, ok := c.(*Text); ok {
+			content = append(content, t.Value)
+			continue
+		}
+		if v, ok := c.(interface{ Value() string }); ok {
+			content = append(content, v.Value())
+		}
+	}
+	return strings.Join(content, "")
+}
+
+func (e *Element) Elements() []*Element {
+	var all []*Element
+	for i := range e.Children {
+		el, ok := e.Children[i].(*Element)
+		if ok {
+			all = append(all, el)
+		}
+	}
+	return all
+}
+
 func (e *Element) FirstChild() (Node, error) {
 	n := len(e.Children)
 	if n == 0 {

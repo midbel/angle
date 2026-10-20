@@ -141,18 +141,14 @@ func (e *Element) Leaf() bool {
 	return len(e.Children) == 0
 }
 
-func (e *Element) Value() string {
-	var content []string
+func (e *Element) Content() string {
+	var content strings.Builder
 	for _, c := range e.Children {
-		if t, ok := c.(*Text); ok {
-			content = append(content, t.Value)
-			continue
-		}
-		if v, ok := c.(interface{ Value() string }); ok {
-			content = append(content, v.Value())
+		if c, ok := c.(interface{ Content() string }); ok {
+			content.WriteString(c.Content())
 		}
 	}
-	return strings.Join(content, "")
+	return content.String()
 }
 
 func (e *Element) Elements() []*Element {
@@ -166,23 +162,23 @@ func (e *Element) Elements() []*Element {
 	return all
 }
 
-func (e *Element) FirstChild() (Node, error) {
+func (e *Element) FirstChild() Node {
 	n := len(e.Children)
 	if n == 0 {
-		return nil, fmt.Errorf("no child available")
+		return nil
 	}
-	return e.Children[0], nil
+	return e.Children[0]
 }
 
-func (e *Element) LastChild() (Node, error) {
+func (e *Element) LastChild() Node {
 	n := len(e.Children)
 	if n == 0 {
-		return nil, fmt.Errorf("no child available")
+		return nil
 	}
-	return e.Children[n-1], nil
+	return e.Children[n-1]
 }
 
-func (e *Element) ElementByName(name string) (Node, error) {
+func (e *Element) ElementByName(name string) (*Element, error) {
 	all := e.ElementsByName(name)
 	if len(all) == 0 {
 		return nil, fmt.Errorf("empty set")
@@ -190,8 +186,8 @@ func (e *Element) ElementByName(name string) (Node, error) {
 	return all[0], nil
 }
 
-func (e *Element) ElementsByName(name string) []Node {
-	var list []Node
+func (e *Element) ElementsByName(name string) []*Element {
+	var list []*Element
 	for _, c := range e.Children {
 		el, ok := c.(*Element)
 		if !ok {
@@ -228,6 +224,10 @@ func NewText(text string) *Text {
 	return &Text{
 		Value: text,
 	}
+}
+
+func (t *Text) Content() string {
+	return t.Value
 }
 
 func (*Text) Type() NodeType {

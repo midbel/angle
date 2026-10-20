@@ -110,6 +110,16 @@ func NewDocument(root Node) *Document {
 	}
 }
 
+func (d *Document) Root() (Node, error) {
+	for _, c := range d.Children {
+		el, ok := c.(*Element)
+		if ok {
+			return el, nil
+		}
+	}
+	return nil, fmt.Errorf("missing root")
+}
+
 func (Document) Type() NodeType {
 	return DocumentNode
 }
@@ -125,6 +135,44 @@ func NewElement(name Name) *Element {
 	return &Element{
 		Name: name,
 	}
+}
+
+func (e *Element) FirstChild() (Node, error) {
+	n := len(e.Children)
+	if n == 0 {
+		return nil, fmt.Errorf("no child available")
+	}
+	return e.Children[0], nil
+}
+
+func (e *Element) LastChild() (Node, error) {
+	n := len(e.Children)
+	if n == 0 {
+		return nil, fmt.Errorf("no child available")
+	}
+	return e.Children[n-1], nil
+}
+
+func (e *Element) ElementByName(name string) (Node, error) {
+	all := e.ElementsByName(name)
+	if len(all) == 0 {
+		return nil, fmt.Errorf("empty set")
+	}
+	return all[0], nil
+}
+
+func (e *Element) ElementsByName(name string) []Node {
+	var list []Node
+	for _, c := range e.Children {
+		el, ok := c.(*Element)
+		if !ok {
+			continue
+		}
+		if el.Local == name {
+			list = append(list, el)
+		}
+	}
+	return list
 }
 
 func (*Element) Type() NodeType {

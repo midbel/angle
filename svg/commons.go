@@ -75,7 +75,7 @@ func (t translate) String() string {
 }
 
 type rotate struct {
-	angle float64
+	angle  float64
 	origin Point
 }
 

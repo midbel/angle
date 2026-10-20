@@ -10,7 +10,7 @@ type Text struct {
 	origin Point
 	value  string
 
-	anchor string
+	anchor   string
 	baseline string
 
 	fill Color

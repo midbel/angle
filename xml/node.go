@@ -137,6 +137,10 @@ func NewElement(name Name) *Element {
 	}
 }
 
+func (e *Element) Leaf() bool {
+	return len(e.Children) == 0
+}
+
 func (e *Element) Value() string {
 	var content []string
 	for _, c := range e.Children {

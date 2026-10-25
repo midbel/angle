@@ -174,18 +174,16 @@ func (c treeCommand) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	opts := trellis.Options{
-		LayoutOptions: trellis.LayoutOptions{
-			Dimension: trellis.Dimension{
-				Width:  120,
-				Height: 50,
-			},
+	opts := trellis.ScreenOptions{
+		RenderOptions: trellis.RenderOptions{
+			Size: trellis.NewDimension(120, 50),
+			Output: trellis.OutputScreen,
+			Orient: trellis.CompactLayout,
+			Spacing: 4,
 		},
-		StyleOptions: trellis.StyleOptions{
-			Padding: trellis.PaddingS,
-		},
+		Style: trellis.ConnectorUnicode,
 	}
-	return trellis.Compact(cli.Stdout, root, &opts)
+	return trellis.Render(cli.Stdout, root, &opts)
 }
 
 func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
@@ -346,6 +344,10 @@ func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 	if len(el.Attributes) > 0 {
 		sub := &trellis.Node{
 			Value: "attributes",
+			Style: trellis.Style{
+				Padding: trellis.NewInsets(2, 2, 2, 2),
+				Margin: trellis.NewInsets(2, 2, 2, 2),
+			},
 		}
 		for _, a := range el.Attributes {
 			n := &trellis.Node{
@@ -362,6 +364,10 @@ func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 		for _, ns := range el.NS {
 			n := &trellis.Node{
 				Value: fmt.Sprintf("%s = %s", ns.Prefix, ns.URI),
+				Style: trellis.Style{
+					Padding: trellis.NewInsets(2, 2, 2, 2),
+					Margin: trellis.NewInsets(2, 2, 2, 2),
+				},
 			}
 			sub.Nodes = append(sub.Nodes, n)
 		}

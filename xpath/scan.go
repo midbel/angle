@@ -48,6 +48,8 @@ func (t Token) String() string {
 		return "<pipe>"
 	case Comma:
 		return "<comma>"
+	case Namespace:
+		return "<namespace>"
 	case Axis:
 		return "<axis>"
 	case BegPred:
@@ -79,6 +81,7 @@ const (
 	Attr
 	Literal
 	Number
+	Namespace
 	Path
 	DeepPath
 	Wildcard
@@ -200,14 +203,6 @@ func (s *Scanner) scanName(tok *Token) {
 		s.write()
 		s.read()
 	}
-	if s.char == ':' && isLetter(s.peek()) {
-		s.write()
-		s.read()
-		for !s.done() && (isAlpha(s.char) || s.char == '-' || s.char == '.') {
-			s.write()
-			s.read()
-		}
-	}
 	tok.Type = Name
 	tok.Literal = s.str.String()
 }
@@ -260,11 +255,10 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 	case '*':
 		tok.Type = Wildcard
 	case ':':
-		if k := s.peek(); k != s.char {
-			break
+		tok.Type = Namespace
+		if k := s.peek(); k == s.char {
+			s.read()
 		}
-		s.read()
-		tok.Type = Axis
 	case '=':
 		tok.Type = Eq
 	case '!':

@@ -136,7 +136,7 @@ func (s *Scanner) Scan() Token {
 	switch {
 	case isQuote(s.char):
 		s.scanLiteral(&tok)
-	case isNumber(s.char):
+	case isNumber(s.char) || (s.char == '-' && isNumber(s.peek())) || (s.char == '.' && isNumber(s.peek())):
 		s.scanNumber(&tok)
 	case isLetter(s.char):
 		s.scanName(&tok)
@@ -171,6 +171,13 @@ func (s *Scanner) scanLiteral(tok *Token) {
 
 func (s *Scanner) scanNumber(tok *Token) {
 	tok.Type = Number
+	if s.char == '-' {
+		s.write()
+		s.read()
+	}
+	if s.char == '0' && isNumber(s.peek()) {
+		tok.Type = Invalid
+	}
 	for !s.done() && isNumber(s.char) {
 		s.write()
 		s.read()

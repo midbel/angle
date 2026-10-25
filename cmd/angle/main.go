@@ -176,9 +176,9 @@ func (c treeCommand) Run(args []string) error {
 	}
 	opts := trellis.ScreenOptions{
 		RenderOptions: trellis.RenderOptions{
-			Size: trellis.NewDimension(120, 50),
-			Output: trellis.OutputScreen,
-			Orient: trellis.CompactLayout,
+			Size:    trellis.NewDimension(120, 50),
+			Output:  trellis.OutputScreen,
+			Orient:  trellis.CompactLayout,
 			Spacing: 4,
 		},
 		Style: trellis.ConnectorUnicode,
@@ -346,7 +346,7 @@ func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 			Value: "attributes",
 			Style: trellis.Style{
 				Padding: trellis.NewInsets(2, 2, 2, 2),
-				Margin: trellis.NewInsets(2, 2, 2, 2),
+				Margin:  trellis.NewInsets(2, 2, 2, 2),
 			},
 		}
 		for _, a := range el.Attributes {
@@ -366,7 +366,7 @@ func (b *treeBuilder) OnStartElement(el xml.Element, selfClosed bool) error {
 				Value: fmt.Sprintf("%s = %s", ns.Prefix, ns.URI),
 				Style: trellis.Style{
 					Padding: trellis.NewInsets(2, 2, 2, 2),
-					Margin: trellis.NewInsets(2, 2, 2, 2),
+					Margin:  trellis.NewInsets(2, 2, 2, 2),
 				},
 			}
 			sub.Nodes = append(sub.Nodes, n)

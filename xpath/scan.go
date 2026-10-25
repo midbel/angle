@@ -196,14 +196,14 @@ func (s *Scanner) scanNumber(tok *Token) {
 }
 
 func (s *Scanner) scanName(tok *Token) {
-	for !s.done() && isAlpha(s.char) {
+	for !s.done() && (isAlpha(s.char) || s.char == '-' || s.char == '.') {
 		s.write()
 		s.read()
 	}
 	if s.char == ':' && isLetter(s.peek()) {
 		s.write()
 		s.read()
-		for !s.done() && isAlpha(s.char) {
+		for !s.done() && (isAlpha(s.char) || s.char == '-' || s.char == '.') {
 			s.write()
 			s.read()
 		}

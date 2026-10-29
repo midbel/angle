@@ -18,7 +18,3 @@ type Item interface {
 }
 
 type Sequence []Item
-
-type Expr interface {
-	Test(Context) bool
-}

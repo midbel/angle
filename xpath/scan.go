@@ -38,9 +38,9 @@ func (t Token) String() string {
 		prefix = "literal"
 	case Number:
 		prefix = "number"
-	case Path:
+	case Slash:
 		return "<path>"
-	case DeepPath:
+	case Deep:
 		return "<deep-path>"
 	case Wildcard:
 		return "<wildcard>"
@@ -50,7 +50,7 @@ func (t Token) String() string {
 		return "<comma>"
 	case Namespace:
 		return "<namespace>"
-	case Axis:
+	case AxisSep:
 		return "<axis>"
 	case BegPred:
 		return "<beg-predicate>"
@@ -82,12 +82,12 @@ const (
 	Literal
 	Number
 	Namespace
-	Path
-	DeepPath
+	Slash
+	Deep
 	Wildcard
 	Pipe
 	Comma
-	Axis
+	AxisSep
 	BegPred
 	EndPred
 	BegGrp
@@ -229,10 +229,10 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 	tok.Type = Invalid
 	switch s.char {
 	case '/':
-		tok.Type = Path
+		tok.Type = Slash
 		if k := s.peek(); k == s.char {
 			s.read()
-			tok.Type = DeepPath
+			tok.Type = Deep
 		}
 	case ',':
 		tok.Type = Comma
@@ -257,6 +257,7 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 	case ':':
 		tok.Type = Namespace
 		if k := s.peek(); k == s.char {
+			tok.Type = AxisSep
 			s.read()
 		}
 	case '=':

@@ -52,6 +52,37 @@ const (
 	AncestorOrSelfAxis
 )
 
+func (a Axis) String() string {
+	switch a {
+	default:
+		return "unknown-axis"
+	case ChildAxis:
+		return "child-axis"
+	case DescendantAxis:
+		return "descendant-axis"
+	case ParentAxis:
+		return "parent-axis"
+	case AncestorAxis:
+		return "ancestor-axis"
+	case FollowingSiblingAxis:
+		return "following-sibling-axis"
+	case PrecedingSiblingAxis:
+		return "preceding-sibling-axis"
+	case FollowingAxis:
+		return "following-axis"
+	case PrecedingAxis:
+		return "preceding-axis"
+	case AttributeAxis:
+		return "attribute-axis"
+	case SelfAxis:
+		return "self-axis"
+	case DescendantOrSelfAxis:
+		return "descendant-or-self-axis"
+	case AncestorOrSelfAxis:
+		return "ancestor-or-self-axis"
+	}
+}
+
 type Step struct {
 	axis Axis
 	Expr
@@ -71,6 +102,21 @@ const (
 	NodeTypeComment
 	NodeTypePI
 )
+
+func (n NodeType) String() string {
+	switch n {
+	default:
+		return "unknown-type"
+	case NodeTypeNode:
+		return "node"
+	case NodeTypeText:
+		return "text-node"
+	case NodeTypeComment:
+		return "comment-node"
+	case NodeTypePI:
+		return "pi-node"
+	}
+}
 
 type typeTest struct {
 	Kind NodeType

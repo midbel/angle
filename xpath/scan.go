@@ -13,89 +13,9 @@ type Position struct {
 	Column int
 }
 
-type Token struct {
-	Literal string
-	Type    rune
-	Position
+func (p Position) String() string {
+	return fmt.Sprintf("[%d:%d]", p.Line, p.Column)
 }
-
-func (t Token) String() string {
-	var prefix string
-	switch t.Type {
-	case Eof:
-		return "<eof>"
-	case Name:
-		prefix = "name"
-	case Variable:
-		prefix = "variable"
-	case Current:
-		return "<current>"
-	case Parent:
-		return "<parent>"
-	case Attr:
-		return "<attribute>"
-	case Literal:
-		prefix = "literal"
-	case Number:
-		prefix = "number"
-	case Slash:
-		return "<path>"
-	case Deep:
-		return "<deep-path>"
-	case Wildcard:
-		return "<wildcard>"
-	case Pipe:
-		return "<pipe>"
-	case Comma:
-		return "<comma>"
-	case Namespace:
-		return "<namespace>"
-	case AxisSep:
-		return "<axis>"
-	case BegPred:
-		return "<beg-predicate>"
-	case EndPred:
-		return "<end-predicate>"
-	case BegGrp:
-		return "<beg-group>"
-	case EndGrp:
-		return "<end-group>"
-	case Eq:
-		return "<equal>"
-	case Ne:
-		return "<notequal>"
-	case Invalid:
-		return "<invalid>"
-	default:
-		return "<unknown>"
-	}
-	return fmt.Sprintf("%s(%s)", prefix, t.Literal)
-}
-
-const (
-	Eof rune = iota
-	Name
-	Variable
-	Current
-	Parent
-	Attr
-	Literal
-	Number
-	Namespace
-	Slash
-	Deep
-	Wildcard
-	Pipe
-	Comma
-	AxisSep
-	BegPred
-	EndPred
-	BegGrp
-	EndGrp
-	Eq
-	Ne
-	Invalid
-)
 
 type Scanner struct {
 	input io.RuneScanner
@@ -203,8 +123,17 @@ func (s *Scanner) scanName(tok *Token) {
 		s.write()
 		s.read()
 	}
-	tok.Type = Name
 	tok.Literal = s.str.String()
+	switch tok.Literal {
+	case "div":
+		tok.Type = Div
+	case "and":
+		tok.Type = And
+	case "or":
+		tok.Type = Or
+	default:
+		tok.Type = Name
+	}
 }
 
 func (s *Scanner) scanVariable(tok *Token) {
@@ -238,6 +167,10 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		tok.Type = Comma
 	case '|':
 		tok.Type = Pipe
+		if k := s.peek(); k == s.char {
+			s.read()
+			tok.Type = Concat
+		}
 	case '(':
 		tok.Type = BegGrp
 	case ')':
@@ -252,8 +185,14 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 			s.read()
 			tok.Type = Parent
 		}
+	case '+':
+		tok.Type = Add
+	case '-':
+		tok.Type = Sub
+	case '%':
+		tok.Type = Mod
 	case '*':
-		tok.Type = Wildcard
+		tok.Type = Mul
 	case ':':
 		tok.Type = Namespace
 		if k := s.peek(); k == s.char {
@@ -268,6 +207,18 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		}
 		s.read()
 		tok.Type = Ne
+	case '<':
+		tok.Type = Lt
+		if k := s.peek(); k == '=' {
+			s.read()
+			tok.Type = Le
+		}
+	case '>':
+		tok.Type = Gt
+		if k := s.peek(); k == '=' {
+			s.read()
+			tok.Type = Ge
+		}
 	default:
 	}
 	s.read()
@@ -359,8 +310,9 @@ func isAttribute(c rune) bool {
 func isDelim(c rune) bool {
 	return c == '/' || c == ',' || c == '|' ||
 		c == '(' || c == ')' || c == '[' || c == ']' ||
-		c == '.' || c == '*' || c == ':' ||
-		c == '=' || c == '!'
+		c == '.' || c == '*' || c == ':' || c == '%' ||
+		c == '=' || c == '!' || c == '+' || c == '-' ||
+		c == '<' || c == '>'
 }
 
 func isBlank(c rune) bool {

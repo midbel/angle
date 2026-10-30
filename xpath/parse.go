@@ -10,11 +10,37 @@ type Parser struct {
 	scan *Scanner
 	curr Token
 	peek Token
+
+	infix  map[rune]func(Expr) (Expr, error)
+	prefix map[rune]func() (Expr, error)
 }
 
 func NewParser(r io.Reader) *Parser {
 	p := &Parser{
 		scan: Scan(r),
+	}
+	p.prefix = map[rune]func() (Expr, error){
+		Sub:      p.parseReverse,
+		BegGrp:   p.parseGroup,
+		Literal:  p.parseLiteral,
+		Number:   p.parseNumber,
+		Variable: p.parseVariable,
+	}
+	p.infix = map[rune]func(Expr) (Expr, error){
+		Eq:     p.parseBinary,
+		Ne:     p.parseBinary,
+		Lt:     p.parseBinary,
+		Le:     p.parseBinary,
+		Gt:     p.parseBinary,
+		Ge:     p.parseBinary,
+		Add:    p.parseBinary,
+		Sub:    p.parseBinary,
+		Mul:    p.parseBinary,
+		Div:    p.parseBinary,
+		Mod:    p.parseBinary,
+		Concat: p.parseBinary,
+		And:    p.parseBinary,
+		Or:     p.parseBinary,
 	}
 	p.next()
 	p.next()
@@ -33,16 +59,50 @@ func (p *Parser) Parse() (Expr, error) {
 }
 
 func (p *Parser) parseExpr() (Expr, error) {
-	switch {
-	case p.is(Variable):
-		return p.parseVariable()
-	case p.is(Number):
-		return p.parseNumber()
-	case p.is(Literal):
-		return p.parseLiteral()
-	default:
-		return p.parsePath()
+	return p.startExpr(powLowest)
+}
+
+func (p *Parser) startExpr(pow int) (Expr, error) {
+	left, err := p.parsePrefix()
+	if err != nil {
+		return nil, err
 	}
+	for !p.done() && !p.endOfExpr() && pow < p.powerOf() {
+		left, err = p.parseInfix(left)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) parsePrefix() (Expr, error) {
+	fn, ok := p.prefix[p.curr.Type]
+	if ok {
+		return fn()
+	}
+	return p.parsePath()
+}
+
+func (p *Parser) parseInfix(left Expr) (Expr, error) {
+	fn, ok := p.infix[p.curr.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported infix operator")
+	}
+	return fn(left)
+}
+
+func (p *Parser) parseGroup() (Expr, error) {
+	p.next()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(EndGrp) {
+		return nil, p.unexpectedToken()
+	}
+	p.next()
+	return expr, nil
 }
 
 func (p *Parser) parseVariable() (Expr, error) {
@@ -73,9 +133,37 @@ func (p *Parser) parseLiteral() (Expr, error) {
 	return i, nil
 }
 
+func (p *Parser) parseReverse() (Expr, error) {
+	u := unary{
+		op: p.curr.Type,
+	}
+	p.next()
+	expr, err := p.startExpr(powPrefix)
+	if err != nil {
+		return nil, err
+	}
+	u.right = expr
+	return u, nil
+}
+
+func (p *Parser) parseBinary(left Expr) (Expr, error) {
+	b := binary{
+		left: left,
+		op:   p.curr.Type,
+	}
+	pow := p.powerOf()
+	p.next()
+	right, err := p.startExpr(pow)
+	if err != nil {
+		return nil, err
+	}
+	b.right = right
+	return b, nil
+}
+
 func (p *Parser) parseList() (Expr, error) {
 	var list []Expr
-	for !p.done() {
+	for !p.endOfExpr() {
 		expr, err := p.parseUnion()
 		if err != nil {
 			return nil, err
@@ -87,6 +175,7 @@ func (p *Parser) parseList() (Expr, error) {
 			if p.done() {
 				return nil, fmt.Errorf("unexpected end of expression after comma")
 			}
+		case p.is(EndGrp):
 		default:
 			return nil, p.unexpectedToken()
 		}
@@ -143,7 +232,7 @@ func (p *Parser) parsePath() (Expr, error) {
 		start, err = p.parseCurrent()
 	case p.is(Parent):
 		start, err = p.parseParent()
-	case p.is(Name) || p.is(Wildcard):
+	case p.is(Name) || p.is(Mul):
 		start, err = p.parseName()
 	case p.is(Slash):
 		if p.peekEndOfExpr() {
@@ -217,7 +306,7 @@ func (p *Parser) parseStep() ([]Expr, error) {
 		return nil, err
 	}
 	switch {
-	case p.is(Name) || p.is(Wildcard):
+	case p.is(Name) || p.is(Mul):
 		if axis == 0 {
 			axis = ChildAxis
 		}
@@ -253,7 +342,7 @@ func (p *Parser) parseName() (Expr, error) {
 	if p.is(Namespace) {
 		nt.Prefix = nt.Name
 		p.next()
-		if !p.is(Wildcard) && !p.is(Name) {
+		if !p.is(Mul) && !p.is(Name) {
 			return nil, p.unexpectedToken()
 		}
 		nt.Name = p.currentLiteral()
@@ -375,7 +464,7 @@ func (p *Parser) done() bool {
 }
 
 func (p *Parser) currentLiteral() string {
-	if p.is(Wildcard) {
+	if p.is(Mul) {
 		return "*"
 	}
 	return p.curr.Literal
@@ -397,11 +486,19 @@ func (p *Parser) is(kind rune) bool {
 	return p.curr.Type == kind
 }
 
+func (p *Parser) powerOf() int {
+	pow, ok := bindings[p.curr.Type]
+	if !ok {
+		pow = powLowest
+	}
+	return pow
+}
+
 func (p *Parser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
 }
 
 func (p *Parser) unexpectedToken() error {
-	return fmt.Errorf("unexpected token: %s", p.curr)
+	return fmt.Errorf("%s: unexpected token: %s", p.curr.Position, p.curr)
 }

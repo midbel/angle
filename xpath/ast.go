@@ -225,6 +225,29 @@ func (n number) String() string {
 
 func (number) expr() {}
 
+type binary struct {
+	left  Expr
+	right Expr
+	op    rune
+}
+
+func (b binary) String() string {
+	return fmt.Sprintf("binary(left: %s, right: %s, op: %c)", b.left, b.right, b.op)
+}
+
+func (binary) expr() {}
+
+type unary struct {
+	right Expr
+	op    rune
+}
+
+func (u unary) String() string {
+	return fmt.Sprintf("unary(expr: %s, op: %c)", u.right, u.op)
+}
+
+func (unary) expr() {}
+
 func axisStep(axis Axis, expr Expr) Expr {
 	return Step{
 		axis: axis,

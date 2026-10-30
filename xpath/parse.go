@@ -34,7 +34,7 @@ func (p *Parser) Parse() (Expr, error) {
 func (p *Parser) parseList() (Expr, error) {
 	var list []Expr
 	for !p.done() {
-		expr, err := p.parsePath()
+		expr, err := p.parseUnion()
 		if err != nil {
 			return nil, err
 		}
@@ -56,6 +56,38 @@ func (p *Parser) parseList() (Expr, error) {
 	return List(list), nil
 }
 
+func (p *Parser) parseUnion() (Expr, error) {
+	var list []Expr
+	for !p.done() {
+		expr, err := p.parsePath()
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, expr)
+		if !p.is(Pipe) {
+			break
+		}
+		p.next()
+	}
+	if len(list) == 1 {
+		return list[0], nil
+	}
+	return Union(list), nil
+}
+
+func (p *Parser) parseNestedPath() (Expr, error) {
+	p.next()
+	expr, err := p.parseList()
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(EndGrp) {
+		return nil, p.unexpectedToken()
+	}
+	p.next()
+	return expr, nil
+}
+
 func (p *Parser) parsePath() (Expr, error) {
 	var (
 		list  []Expr
@@ -63,6 +95,8 @@ func (p *Parser) parsePath() (Expr, error) {
 		err   error
 	)
 	switch {
+	case p.is(BegGrp):
+		start, err = p.parseNestedPath()
 	case p.is(Current):
 		start, err = p.parseCurrent()
 	case p.is(Parent):
@@ -124,6 +158,12 @@ func (p *Parser) parseStep() ([]Expr, error) {
 			return nil, err
 		}
 		return append(list, step), nil
+	} else if p.is(BegGrp) {
+		expr, err := p.parseNestedPath()
+		if err != nil {
+			return nil, err
+		}
+		return append(list, expr), nil
 	}
 	var (
 		axis Axis
@@ -243,12 +283,12 @@ func (p *Parser) parseType(name string) (Expr, error) {
 
 func (p *Parser) parseCurrent() (Expr, error) {
 	p.next()
-	return parentStep(), nil
+	return currentStep(), nil
 }
 
 func (p *Parser) parseParent() (Expr, error) {
 	p.next()
-	return currentStep(), nil
+	return parentStep(), nil
 }
 
 func (p *Parser) done() bool {
@@ -263,11 +303,11 @@ func (p *Parser) currentLiteral() string {
 }
 
 func (p *Parser) endOfExpr() bool {
-	return p.done() || p.is(Comma) || p.is(Pipe)
+	return p.done() || p.is(Comma) || p.is(Pipe) || p.is(EndGrp)
 }
 
 func (p *Parser) peekEndOfExpr() bool {
-	return p.peekIs(Eof) || p.peekIs(Comma) || p.peekIs(Pipe)
+	return p.peekIs(Eof) || p.peekIs(Comma) || p.peekIs(Pipe) || p.peekIs(EndGrp)
 }
 
 func (p *Parser) peekIs(kind rune) bool {

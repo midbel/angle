@@ -27,6 +27,40 @@ func (p Path) String() string {
 
 func (Path) expr() {}
 
+type Union []Expr
+
+func (u Union) String() string {
+	var str strings.Builder
+	str.WriteString("union(")
+	for i := range u {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(u[i].String())
+	}
+	str.WriteString(")")
+	return str.String()
+}
+
+func (Union) expr() {}
+
+type List []Expr
+
+func (i List) String() string {
+	var str strings.Builder
+	str.WriteString("list(")
+	for j := range i {
+		if j > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(i[j].String())
+	}
+	str.WriteString(")")
+	return str.String()
+}
+
+func (List) expr() {}
+
 type Root struct{}
 
 func (Root) String() string {

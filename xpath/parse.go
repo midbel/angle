@@ -21,7 +21,7 @@ func NewParser(r io.Reader) *Parser {
 }
 
 func (p *Parser) Parse() (Expr, error) {
-	path, err := p.parse()
+	path, err := p.parseList()
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,29 @@ func (p *Parser) Parse() (Expr, error) {
 	return path, p.scan.Err()
 }
 
-func (p *Parser) parse() (Expr, error) {
+func (p *Parser) parseList() (Expr, error) {
+	var list []Expr
+	for !p.done() {
+		expr, err := p.parsePath()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case p.done():
+		case p.is(Comma):
+			p.next()
+			if p.done() {
+				return nil, fmt.Errorf("unexpected end of expression after comma")
+			}
+		default:
+			return nil, p.unexpectedToken()
+		}
+		list = append(list, expr)
+	}
+	return List(list), nil
+}
+
+func (p *Parser) parsePath() (Expr, error) {
 	var (
 		list  []Expr
 		start Expr
@@ -45,7 +67,7 @@ func (p *Parser) parse() (Expr, error) {
 	case p.is(Name) || p.is(Wildcard):
 		start, err = p.parseName()
 	case p.is(Slash):
-		if p.peek.Type == Eof {
+		if p.peek.Type == Eof || p.peek.Type == Comma {
 			p.next()
 			return Root{}, nil
 		}
@@ -59,7 +81,7 @@ func (p *Parser) parse() (Expr, error) {
 	if start != nil {
 		list = append(list, start)
 	}
-	for !p.done() {
+	for !p.done() && !p.is(Comma) {
 		steps, err := p.parseStep()
 		if err != nil {
 			return nil, err
@@ -110,6 +132,9 @@ func (p *Parser) parseStep() ([]Expr, error) {
 	}
 	switch {
 	case p.is(Name) || p.is(Wildcard):
+		if step.axis == 0 {
+			step.axis = ChildAxis
+		}
 		step.Expr, err = p.parseName()
 	case p.is(Attr):
 		if step.axis != 0 {

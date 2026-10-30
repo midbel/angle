@@ -50,6 +50,9 @@ func (p *Parser) parseList() (Expr, error) {
 		}
 		list = append(list, expr)
 	}
+	if len(list) == 1 {
+		return list[0], nil
+	}
 	return List(list), nil
 }
 
@@ -67,18 +70,13 @@ func (p *Parser) parsePath() (Expr, error) {
 	case p.is(Name) || p.is(Wildcard):
 		start, err = p.parseName()
 	case p.is(Slash):
-		if p.peek.Type == Eof || p.peek.Type == Comma {
+		if p.peekEndOfExpr() {
 			p.next()
 			return Root{}, nil
 		}
 	case p.is(Deep):
-		if p.peek.Type == Eof || p.peek.Type == Comma {
-			start = Step{
-				axis: DescendantOrSelfAxis,
-				Expr: typeTest{
-					kind: NodeTypeNode,
-				},
-			}
+		if p.peekEndOfExpr() {
+			start = descendantOrSelfStep()
 			p.next()
 			return start, nil
 		}
@@ -91,7 +89,7 @@ func (p *Parser) parsePath() (Expr, error) {
 	if start != nil {
 		list = append(list, start)
 	}
-	for !p.done() && !p.is(Comma) {
+	for !p.endOfExpr() {
 		steps, err := p.parseStep()
 		if err != nil {
 			return nil, err
@@ -107,12 +105,7 @@ func (p *Parser) parseStep() ([]Expr, error) {
 		return nil, p.unexpectedToken()
 	}
 	if p.is(Deep) {
-		step := Step{
-			axis: DescendantOrSelfAxis,
-			Expr: typeTest{
-				Kind: NodeTypeNode,
-			},
-		}
+		step := descendantOrSelfStep()
 		list = append(list, step)
 	}
 	p.next()
@@ -133,26 +126,34 @@ func (p *Parser) parseStep() ([]Expr, error) {
 		return append(list, step), nil
 	}
 	var (
-		step Step
+		axis Axis
+		step Expr
 		err  error
 	)
-	step.axis, err = p.parseAxis()
+	axis, err = p.parseAxis()
 	if err != nil {
 		return nil, err
 	}
 	switch {
 	case p.is(Name) || p.is(Wildcard):
-		if step.axis == 0 {
-			step.axis = ChildAxis
+		if axis == 0 {
+			axis = ChildAxis
 		}
-		step.Expr, err = p.parseName()
+		expr, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		step = axisStep(axis, expr)
 	case p.is(Attr):
-		if step.axis != 0 {
+		if axis != 0 {
 			return nil, fmt.Errorf("attribute: invalid syntax")
 		}
 		p.next()
-		step.axis = AttributeAxis
-		step.Expr, err = p.parseName()
+		expr, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		step = axisStep(AttributeAxis, expr)
 	default:
 		return nil, p.unexpectedToken()
 	}
@@ -241,25 +242,13 @@ func (p *Parser) parseType(name string) (Expr, error) {
 }
 
 func (p *Parser) parseCurrent() (Expr, error) {
-	step := Step{
-		axis: SelfAxis,
-		Expr: typeTest{
-			Kind: NodeTypeNode,
-		},
-	}
 	p.next()
-	return step, nil
+	return parentStep(), nil
 }
 
 func (p *Parser) parseParent() (Expr, error) {
-	step := Step{
-		axis: ParentAxis,
-		Expr: typeTest{
-			Kind: NodeTypeNode,
-		},
-	}
 	p.next()
-	return step, nil
+	return currentStep(), nil
 }
 
 func (p *Parser) done() bool {
@@ -271,6 +260,18 @@ func (p *Parser) currentLiteral() string {
 		return "*"
 	}
 	return p.curr.Literal
+}
+
+func (p *Parser) endOfExpr() bool {
+	return p.done() || p.is(Comma) || p.is(Pipe)
+}
+
+func (p *Parser) peekEndOfExpr() bool {
+	return p.peekIs(Eof) || p.peekIs(Comma) || p.peekIs(Pipe)
+}
+
+func (p *Parser) peekIs(kind rune) bool {
+	return p.peek.Type == kind
 }
 
 func (p *Parser) is(kind rune) bool {

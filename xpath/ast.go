@@ -183,3 +183,37 @@ func (p predicate) String() string {
 }
 
 func (p predicate) expr() {}
+
+func axisStep(axis Axis, expr Expr) Expr {
+	return Step{
+		axis: axis,
+		Expr: expr,
+	}
+}
+
+func descendantOrSelfStep() Expr {
+	return Step{
+		axis: DescendantOrSelfAxis,
+		Expr: typeTest{
+			Kind: NodeTypeNode,
+		},
+	}
+}
+
+func parentStep() Expr {
+	return Step{
+		axis: SelfAxis,
+		Expr: typeTest{
+			Kind: NodeTypeNode,
+		},
+	}
+}
+
+func currentStep() Expr {
+	return Step{
+		axis: ParentAxis,
+		Expr: typeTest{
+			Kind: NodeTypeNode,
+		},
+	}
+}

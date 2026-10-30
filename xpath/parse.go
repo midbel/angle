@@ -72,6 +72,16 @@ func (p *Parser) parsePath() (Expr, error) {
 			return Root{}, nil
 		}
 	case p.is(Deep):
+		if p.peek.Type == Eof || p.peek.Type == Comma {
+			start = Step{
+				axis: DescendantOrSelfAxis,
+				Expr: typeTest{
+					kind: NodeTypeNode,
+				},
+			}
+			p.next()
+			return start, nil
+		}
 	default:
 		return nil, p.unexpectedToken()
 	}

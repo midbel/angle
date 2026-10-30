@@ -179,7 +179,7 @@ type predicate struct {
 }
 
 func (p predicate) String() string {
-	return fmt.Sprintf("predicate(expr: %s, check: %s", p.Expr, p.Check)
+	return fmt.Sprintf("predicate(expr: %s, check: %s)", p.Expr, p.Check)
 }
 
 func (p predicate) expr() {}

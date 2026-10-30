@@ -184,6 +184,47 @@ func (p predicate) String() string {
 
 func (p predicate) expr() {}
 
+type call struct {
+	Name string
+	Args []Expr
+}
+
+func (c call) String() string {
+	return fmt.Sprintf("call(name: %s, args: %s)", c.Name, c.Args)
+}
+
+func (call) expr() {}
+
+type literal struct {
+	str string
+}
+
+func (i literal) String() string {
+	return fmt.Sprintf("literal(%s)", i.str)
+}
+
+func (literal) expr() {}
+
+type variable struct {
+	ident string
+}
+
+func (v variable) String() string {
+	return fmt.Sprintf("variable(%s)", v.ident)
+}
+
+func (variable) expr() {}
+
+type number struct {
+	value float64
+}
+
+func (n number) String() string {
+	return fmt.Sprintf("number(%f)", n.value)
+}
+
+func (number) expr() {}
+
 func axisStep(axis Axis, expr Expr) Expr {
 	return Step{
 		axis: axis,

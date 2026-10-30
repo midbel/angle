@@ -3,6 +3,7 @@ package xpath
 import (
 	"fmt"
 	"io"
+	"strconv"
 )
 
 type Parser struct {
@@ -29,6 +30,47 @@ func (p *Parser) Parse() (Expr, error) {
 		return nil, fmt.Errorf("eof expected")
 	}
 	return path, p.scan.Err()
+}
+
+func (p *Parser) parseExpr() (Expr, error) {
+	switch {
+	case p.is(Variable):
+		return p.parseVariable()
+	case p.is(Number):
+		return p.parseNumber()
+	case p.is(Literal):
+		return p.parseLiteral()
+	default:
+		return p.parsePath()
+	}
+}
+
+func (p *Parser) parseVariable() (Expr, error) {
+	v := variable{
+		ident: p.currentLiteral(),
+	}
+	p.next()
+	return v, nil
+}
+
+func (p *Parser) parseNumber() (Expr, error) {
+	v, err := strconv.ParseFloat(p.currentLiteral(), 64)
+	if err != nil {
+		return nil, err
+	}
+	n := number{
+		value: v,
+	}
+	p.next()
+	return n, nil
+}
+
+func (p *Parser) parseLiteral() (Expr, error) {
+	i := literal{
+		str: p.currentLiteral(),
+	}
+	p.next()
+	return i, nil
 }
 
 func (p *Parser) parseList() (Expr, error) {
@@ -206,7 +248,7 @@ func (p *Parser) parseName() (Expr, error) {
 	}
 	p.next()
 	if p.is(BegGrp) {
-		return p.parseType(nt.Name)
+		return p.parseParens(nt.Name)
 	}
 	if p.is(Namespace) {
 		nt.Prefix = nt.Name
@@ -259,26 +301,63 @@ func (p *Parser) parseAxis() (Axis, error) {
 	return axis, nil
 }
 
-func (p *Parser) parseType(name string) (Expr, error) {
+func (p *Parser) parseParens(name string) (Expr, error) {
 	p.next()
-	var tt typeTest
+	var (
+		kind NodeType
+		expr Expr
+		err  error
+	)
 	switch name {
 	case "node":
-		tt.Kind = NodeTypeNode
+		kind = NodeTypeNode
 	case "text":
-		tt.Kind = NodeTypeText
+		kind = NodeTypeText
 	case "comment":
-		tt.Kind = NodeTypeComment
+		kind = NodeTypeComment
 	case "processing-instruction":
-		tt.Kind = NodeTypePI
+		kind = NodeTypePI
 	default:
-		return nil, fmt.Errorf("invalid type: %s", name)
+	}
+	if kind == 0 {
+		expr, err = p.parseCall(name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		expr = typeTest{
+			Kind: kind,
+		}
 	}
 	if !p.is(EndGrp) {
 		return nil, p.unexpectedToken()
 	}
 	p.next()
-	return tt, nil
+	return expr, nil
+}
+
+func (p *Parser) parseCall(name string) (Expr, error) {
+	expr := call{
+		Name: name,
+	}
+	for !p.done() && !p.is(EndGrp) {
+		a, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		expr.Args = append(expr.Args, a)
+		switch {
+		case p.is(EndGrp):
+		case p.is(Comma):
+			p.next()
+			if p.is(EndGrp) {
+				return nil, fmt.Errorf("invalid syntax, expected expression after comma")
+			}
+		default:
+			return nil, p.unexpectedToken()
+		}
+	}
+	return expr, nil
 }
 
 func (p *Parser) parseCurrent() (Expr, error) {

@@ -125,10 +125,12 @@ const (
 	powAnd
 	powEq
 	powCmp
+	powUnion
 	powConcat
 	powAdd
 	powMul
 	powCall
+	powGroup
 	powPrefix
 )
 
@@ -148,4 +150,5 @@ var bindings = map[rune]int{
 	Ge:     powCmp,
 	And:    powAnd,
 	Or:     powOr,
+	Pipe:   powUnion,
 }

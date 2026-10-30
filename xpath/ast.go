@@ -10,26 +10,9 @@ type Expr interface {
 	expr()
 }
 
-type Path []Expr
+type union []Expr
 
-func (p Path) String() string {
-	var str strings.Builder
-	str.WriteString("path(")
-	for i := range p {
-		if i > 0 {
-			str.WriteString(", ")
-		}
-		str.WriteString(p[i].String())
-	}
-	str.WriteString(")")
-	return str.String()
-}
-
-func (Path) expr() {}
-
-type Union []Expr
-
-func (u Union) String() string {
+func (u union) String() string {
 	var str strings.Builder
 	str.WriteString("union(")
 	for i := range u {
@@ -42,11 +25,11 @@ func (u Union) String() string {
 	return str.String()
 }
 
-func (Union) expr() {}
+func (union) expr() {}
 
-type List []Expr
+type list []Expr
 
-func (i List) String() string {
+func (i list) String() string {
 	var str strings.Builder
 	str.WriteString("list(")
 	for j := range i {
@@ -59,7 +42,7 @@ func (i List) String() string {
 	return str.String()
 }
 
-func (List) expr() {}
+func (list) expr() {}
 
 type Root struct{}
 
@@ -117,16 +100,16 @@ func (a Axis) String() string {
 	}
 }
 
-type Step struct {
+type step struct {
 	axis Axis
 	Expr
 }
 
-func (s Step) String() string {
+func (s step) String() string {
 	return fmt.Sprintf("step(axis: %s, expr: %s)", s.axis, s.Expr)
 }
 
-func (Step) expr() {}
+func (step) expr() {}
 
 type NodeType uint8
 
@@ -162,16 +145,16 @@ func (t typeTest) String() string {
 
 func (typeTest) expr() {}
 
-type nameTest struct {
+type name struct {
 	Prefix string
 	Name   string
 }
 
-func (n nameTest) String() string {
+func (n name) String() string {
 	return fmt.Sprintf("nameTest(prefix: %s, name: %s)", n.Prefix, n.Name)
 }
 
-func (nameTest) expr() {}
+func (name) expr() {}
 
 type predicate struct {
 	Expr
@@ -185,12 +168,23 @@ func (p predicate) String() string {
 func (p predicate) expr() {}
 
 type call struct {
-	Name string
+	Name name
 	Args []Expr
 }
 
 func (c call) String() string {
-	return fmt.Sprintf("call(name: %s, args: %s)", c.Name, c.Args)
+	var str strings.Builder
+	str.WriteString("call(name: ")
+	str.WriteString(c.Name.String())
+	str.WriteString(", args: ")
+	for i := range c.Args {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(c.Args[i].String())
+	}
+	str.WriteString(")")
+	return str.String()
 }
 
 func (call) expr() {}
@@ -249,14 +243,14 @@ func (u unary) String() string {
 func (unary) expr() {}
 
 func axisStep(axis Axis, expr Expr) Expr {
-	return Step{
+	return step{
 		axis: axis,
 		Expr: expr,
 	}
 }
 
 func descendantOrSelfStep() Expr {
-	return Step{
+	return step{
 		axis: DescendantOrSelfAxis,
 		Expr: typeTest{
 			Kind: NodeTypeNode,
@@ -265,7 +259,7 @@ func descendantOrSelfStep() Expr {
 }
 
 func parentStep() Expr {
-	return Step{
+	return step{
 		axis: SelfAxis,
 		Expr: typeTest{
 			Kind: NodeTypeNode,
@@ -274,7 +268,7 @@ func parentStep() Expr {
 }
 
 func currentStep() Expr {
-	return Step{
+	return step{
 		axis: ParentAxis,
 		Expr: typeTest{
 			Kind: NodeTypeNode,

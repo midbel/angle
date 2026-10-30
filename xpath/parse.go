@@ -11,8 +11,9 @@ type Parser struct {
 	curr Token
 	peek Token
 
-	infix  map[rune]func(Expr) (Expr, error)
-	prefix map[rune]func() (Expr, error)
+	infix   map[rune]func(Expr) (Expr, error)
+	postfix map[rune]func(Expr) (Expr, error)
+	prefix  map[rune]func() (Expr, error)
 }
 
 func NewParser(r io.Reader) *Parser {
@@ -25,6 +26,19 @@ func NewParser(r io.Reader) *Parser {
 		Literal:  p.parseLiteral,
 		Number:   p.parseNumber,
 		Variable: p.parseVariable,
+		Slash:    p.parseSlash,
+		Deep:     p.parseDeep,
+		Attr:     p.parseAttribute,
+		Name:     p.parseName,
+		Mul:      p.parseName,
+		Current:  p.parseCurrent,
+		Parent:   p.parseParent,
+	}
+	p.postfix = map[rune]func(Expr) (Expr, error){
+		BegGrp:  p.parseCall,
+		BegPred: p.parsePredicate,
+		Slash:   p.parseStep,
+		Deep:    p.parseStep,
 	}
 	p.infix = map[rune]func(Expr) (Expr, error){
 		Eq:     p.parseBinary,
@@ -41,6 +55,8 @@ func NewParser(r io.Reader) *Parser {
 		Concat: p.parseBinary,
 		And:    p.parseBinary,
 		Or:     p.parseBinary,
+		Comma:  p.parseList,
+		Pipe:   p.parseUnion,
 	}
 	p.next()
 	p.next()
@@ -48,14 +64,14 @@ func NewParser(r io.Reader) *Parser {
 }
 
 func (p *Parser) Parse() (Expr, error) {
-	path, err := p.parseList()
+	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 	if !p.done() {
 		return nil, fmt.Errorf("eof expected")
 	}
-	return path, p.scan.Err()
+	return expr, p.scan.Err()
 }
 
 func (p *Parser) parseExpr() (Expr, error) {
@@ -63,12 +79,30 @@ func (p *Parser) parseExpr() (Expr, error) {
 }
 
 func (p *Parser) startExpr(pow int) (Expr, error) {
-	left, err := p.parsePrefix()
+	fn, ok := p.prefix[p.curr.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported prefix operator")
+	}
+	left, err := fn()
 	if err != nil {
 		return nil, err
 	}
-	for !p.done() && !p.endOfExpr() && pow < p.powerOf() {
-		left, err = p.parseInfix(left)
+	for {
+		fn, ok := p.postfix[p.curr.Type]
+		if !ok {
+			break
+		}
+		left, err = fn(left)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for !p.done() && pow < p.powerOf() {
+		fn, ok := p.infix[p.curr.Type]
+		if !ok {
+			return nil, fmt.Errorf("unsupported prefix operator")
+		}
+		left, err = fn(left)
 		if err != nil {
 			return nil, err
 		}
@@ -76,25 +110,29 @@ func (p *Parser) startExpr(pow int) (Expr, error) {
 	return left, nil
 }
 
-func (p *Parser) parsePrefix() (Expr, error) {
-	fn, ok := p.prefix[p.curr.Type]
-	if ok {
-		return fn()
-	}
-	return p.parsePath()
-}
-
-func (p *Parser) parseInfix(left Expr) (Expr, error) {
-	fn, ok := p.infix[p.curr.Type]
+func (p *Parser) parseCall(left Expr) (Expr, error) {
+	n, ok := left.(name)
 	if !ok {
-		return nil, fmt.Errorf("unsupported infix operator")
+		return nil, fmt.Errorf("name expected for function")
 	}
-	return fn(left)
+	p.next()
+	args, err := p.parseArgs()
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(EndGrp) {
+		return nil, p.unexpectedToken()
+	}
+	expr := call{
+		Name: n,
+		Args: args,
+	}
+	return expr, nil
 }
 
 func (p *Parser) parseGroup() (Expr, error) {
 	p.next()
-	expr, err := p.parseExpr()
+	expr, err := p.startExpr(powGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -161,194 +199,67 @@ func (p *Parser) parseBinary(left Expr) (Expr, error) {
 	return b, nil
 }
 
-func (p *Parser) parseList() (Expr, error) {
-	var list []Expr
-	for !p.endOfExpr() {
-		expr, err := p.parseUnion()
-		if err != nil {
-			return nil, err
-		}
-		switch {
-		case p.done():
-		case p.is(Comma):
-			p.next()
-			if p.done() {
-				return nil, fmt.Errorf("unexpected end of expression after comma")
-			}
-		case p.is(EndGrp):
-		default:
-			return nil, p.unexpectedToken()
-		}
-		list = append(list, expr)
-	}
-	if len(list) == 1 {
-		return list[0], nil
-	}
-	return List(list), nil
+func (p *Parser) parsePredicate(left Expr) (Expr, error) {
+	return nil, nil
 }
 
-func (p *Parser) parseUnion() (Expr, error) {
-	var list []Expr
-	for !p.done() {
-		expr, err := p.parsePath()
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, expr)
-		if !p.is(Pipe) {
-			break
-		}
+func (p *Parser) parseSlash() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseDeep() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseStep(left Expr) (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseList(left Expr) (Expr, error) {
+	var expr []Expr
+	for p.is(Comma) {
 		p.next()
+		e, err := p.startExpr(powUnion)
+		if err != nil {
+			return nil, err
+		}
+		expr = append(expr, e)
 	}
-	if len(list) == 1 {
-		return list[0], nil
-	}
-	return Union(list), nil
+	return list(expr), nil
 }
 
-func (p *Parser) parseNestedPath() (Expr, error) {
-	p.next()
-	expr, err := p.parseList()
-	if err != nil {
-		return nil, err
-	}
-	if !p.is(EndGrp) {
-		return nil, p.unexpectedToken()
-	}
-	p.next()
-	return expr, nil
-}
-
-func (p *Parser) parsePath() (Expr, error) {
-	var (
-		list  []Expr
-		start Expr
-		err   error
-	)
-	switch {
-	case p.is(BegGrp):
-		start, err = p.parseNestedPath()
-	case p.is(Current):
-		start, err = p.parseCurrent()
-	case p.is(Parent):
-		start, err = p.parseParent()
-	case p.is(Name) || p.is(Mul):
-		start, err = p.parseName()
-	case p.is(Slash):
-		if p.peekEndOfExpr() {
-			p.next()
-			return Root{}, nil
-		}
-	case p.is(Deep):
-		if p.peekEndOfExpr() {
-			start = descendantOrSelfStep()
-			p.next()
-			return start, nil
-		}
-	default:
-		return nil, p.unexpectedToken()
-	}
-	if err != nil {
-		return nil, err
-	}
-	if start != nil {
-		list = append(list, start)
-	}
-	for !p.endOfExpr() {
-		steps, err := p.parseStep()
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, steps...)
-	}
-	return Path(list), nil
-}
-
-func (p *Parser) parseStep() ([]Expr, error) {
-	var list []Expr
-	if !p.is(Slash) && !p.is(Deep) {
-		return nil, p.unexpectedToken()
-	}
-	if p.is(Deep) {
-		step := descendantOrSelfStep()
-		list = append(list, step)
-	}
-	p.next()
-	if p.done() {
-		return nil, fmt.Errorf("invalid syntax, expected expression after '/' or '//'")
-	}
-	if p.is(Current) {
-		step, err := p.parseCurrent()
-		if err != nil {
-			return nil, err
-		}
-		return append(list, step), nil
-	} else if p.is(Parent) {
-		step, err := p.parseParent()
-		if err != nil {
-			return nil, err
-		}
-		return append(list, step), nil
-	} else if p.is(BegGrp) {
-		expr, err := p.parseNestedPath()
-		if err != nil {
-			return nil, err
-		}
-		return append(list, expr), nil
-	}
-	var (
-		axis Axis
-		step Expr
-		err  error
-	)
-	axis, err = p.parseAxis()
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case p.is(Name) || p.is(Mul):
-		if axis == 0 {
-			axis = ChildAxis
-		}
-		expr, err := p.parseName()
-		if err != nil {
-			return nil, err
-		}
-		step = axisStep(axis, expr)
-	case p.is(Attr):
-		if axis != 0 {
-			return nil, fmt.Errorf("attribute: invalid syntax")
-		}
+func (p *Parser) parseUnion(left Expr) (Expr, error) {
+	var expr []Expr
+	for p.is(Pipe) {
 		p.next()
-		expr, err := p.parseName()
+		e, err := p.startExpr(powUnion)
 		if err != nil {
 			return nil, err
 		}
-		step = axisStep(AttributeAxis, expr)
-	default:
-		return nil, p.unexpectedToken()
+		expr = append(expr, e)
 	}
-	return append(list, step), err
+	return union(expr), nil
 }
 
 func (p *Parser) parseName() (Expr, error) {
-	nt := nameTest{
+	n := name{
 		Name: p.currentLiteral(),
 	}
 	p.next()
-	if p.is(BegGrp) {
-		return p.parseParens(nt.Name)
-	}
 	if p.is(Namespace) {
-		nt.Prefix = nt.Name
+		n.Prefix = n.Name
 		p.next()
 		if !p.is(Mul) && !p.is(Name) {
 			return nil, p.unexpectedToken()
 		}
-		nt.Name = p.currentLiteral()
+		n.Name = p.currentLiteral()
 		p.next()
 	}
-	return nt, nil
+	return n, nil
+}
+
+func (p *Parser) parseAttribute() (Expr, error) {
+	return nil, nil
 }
 
 func (p *Parser) parseAxis() (Axis, error) {
@@ -390,51 +301,14 @@ func (p *Parser) parseAxis() (Axis, error) {
 	return axis, nil
 }
 
-func (p *Parser) parseParens(name string) (Expr, error) {
-	p.next()
-	var (
-		kind NodeType
-		expr Expr
-		err  error
-	)
-	switch name {
-	case "node":
-		kind = NodeTypeNode
-	case "text":
-		kind = NodeTypeText
-	case "comment":
-		kind = NodeTypeComment
-	case "processing-instruction":
-		kind = NodeTypePI
-	default:
-	}
-	if kind == 0 {
-		expr, err = p.parseCall(name)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		expr = typeTest{
-			Kind: kind,
-		}
-	}
-	if !p.is(EndGrp) {
-		return nil, p.unexpectedToken()
-	}
-	p.next()
-	return expr, nil
-}
-
-func (p *Parser) parseCall(name string) (Expr, error) {
-	expr := call{
-		Name: name,
-	}
+func (p *Parser) parseArgs() ([]Expr, error) {
+	var list []Expr
 	for !p.done() && !p.is(EndGrp) {
 		a, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		expr.Args = append(expr.Args, a)
+		list = append(list, a)
 		switch {
 		case p.is(EndGrp):
 		case p.is(Comma):
@@ -446,7 +320,7 @@ func (p *Parser) parseCall(name string) (Expr, error) {
 			return nil, p.unexpectedToken()
 		}
 	}
-	return expr, nil
+	return list, nil
 }
 
 func (p *Parser) parseCurrent() (Expr, error) {

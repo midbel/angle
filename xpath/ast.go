@@ -157,7 +157,7 @@ type name struct {
 }
 
 func (n name) String() string {
-	return fmt.Sprintf("nameTest(prefix: %s, name: %s)", n.Prefix, n.Name)
+	return fmt.Sprintf("name(prefix: %s, name: %s)", n.Prefix, n.Name)
 }
 
 func (name) expr() {}
@@ -273,7 +273,7 @@ func descendantOrSelfStep() Expr {
 
 func parentStep() Expr {
 	return step{
-		axis: SelfAxis,
+		axis: ParentAxis,
 		Expr: typeTest{
 			Kind: NodeTypeNode,
 		},
@@ -282,7 +282,7 @@ func parentStep() Expr {
 
 func currentStep() Expr {
 	return step{
-		axis: ParentAxis,
+		axis: SelfAxis,
 		Expr: typeTest{
 			Kind: NodeTypeNode,
 		},

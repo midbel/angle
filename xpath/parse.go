@@ -295,16 +295,19 @@ func (p *Parser) parseName() (Expr, error) {
 	if !p.is(Mul) && !p.is(Name) {
 		return nil, p.unexpectedToken()
 	}
-	nt.Name = p.currentLiteral()
 	if nt.Prefix == "" {
 		if expr, ok, err := p.parseNodeTest(); ok {
 			if err != nil {
 				return nil, err
 			}
+			if st.axis == 0 {
+				st.axis = ChildAxis
+			}
 			st.Expr = expr
 			return st, nil
 		}
 	}
+	nt.Name = p.currentLiteral()
 	p.next()
 	if p.is(BegGrp) {
 		if st.axis != 0 {
@@ -315,6 +318,7 @@ func (p *Parser) parseName() (Expr, error) {
 	if st.axis == 0 {
 		st.axis = ChildAxis
 	}
+	st.Expr = nt
 	return st, nil
 }
 
@@ -324,12 +328,11 @@ func (p *Parser) parseAttribute() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return attributeAxis(expr), nil
+	return attributeStep(expr), nil
 }
 
-
 func (p *Parser) parseAxis() (Axis, error) {
-	if p.peekIs(AxisStep) {
+	if !p.peekIs(AxisSep) {
 		return 0, nil
 	}
 	if !p.is(Name) {

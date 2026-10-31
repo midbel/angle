@@ -110,6 +110,39 @@ func (p *Parser) startExpr(pow int) (Expr, error) {
 	return left, nil
 }
 
+func (p *Parser) parseNodeTest() (Expr, bool, error) {
+	if !p.peekIs(BegGrp) {
+		return nil, false, nil
+	}
+	var kind NodeType
+	switch p.currentLiteral() {
+	case "node":
+		kind = NodeTypeNode
+	case "element":
+		kind = NodeTypeElem
+	case "attribute":
+		kind = NodeTypeAttr
+	case "text":
+		kind = NodeTypeText
+	case "comment":
+		kind = NodeTypeComment
+	case "processing-instruction":
+		kind = NodeTypePI
+	default:
+		return nil, false, nil
+	}
+	p.next()
+	p.next()
+	if !p.is(EndGrp) {
+		return nil, true, p.unexpectedToken()
+	}
+	p.next()
+	nt := typeTest{
+		Kind: kind,
+	}
+	return nt, true, nil
+}
+
 func (p *Parser) parseCall(left Expr) (Expr, error) {
 	n, ok := left.(name)
 	if !ok {
@@ -242,28 +275,61 @@ func (p *Parser) parseUnion(left Expr) (Expr, error) {
 }
 
 func (p *Parser) parseName() (Expr, error) {
-	n := name{
-		Name: p.currentLiteral(),
+	var (
+		st  step
+		nt  name
+		err error
+	)
+	st.axis, err = p.parseAxis()
+	if err != nil {
+		return nil, err
 	}
-	p.next()
-	if p.is(Namespace) {
-		n.Prefix = n.Name
-		p.next()
+	if p.peekIs(Namespace) {
 		if !p.is(Mul) && !p.is(Name) {
 			return nil, p.unexpectedToken()
 		}
-		n.Name = p.currentLiteral()
+		nt.Prefix = p.currentLiteral()
+		p.next()
 		p.next()
 	}
-	return n, nil
+	if !p.is(Mul) && !p.is(Name) {
+		return nil, p.unexpectedToken()
+	}
+	nt.Name = p.currentLiteral()
+	if nt.Prefix == "" {
+		if expr, ok, err := p.parseNodeTest(); ok {
+			if err != nil {
+				return nil, err
+			}
+			st.Expr = expr
+			return st, nil
+		}
+	}
+	p.next()
+	if p.is(BegGrp) {
+		if st.axis != 0 {
+			return nil, fmt.Errorf("function call can not used axis")
+		}
+		return p.parseCall(nt)
+	}
+	if st.axis == 0 {
+		st.axis = ChildAxis
+	}
+	return st, nil
 }
 
 func (p *Parser) parseAttribute() (Expr, error) {
-	return nil, nil
+	p.next()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return attributeAxis(expr), nil
 }
 
+
 func (p *Parser) parseAxis() (Axis, error) {
-	if p.peek.Type != AxisSep {
+	if p.peekIs(AxisStep) {
 		return 0, nil
 	}
 	if !p.is(Name) {

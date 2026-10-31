@@ -115,6 +115,8 @@ type NodeType uint8
 
 const (
 	NodeTypeNode NodeType = 1 + iota
+	NodeTypeElem
+	NodeTypeAttr
 	NodeTypeText
 	NodeTypeComment
 	NodeTypePI
@@ -126,6 +128,10 @@ func (n NodeType) String() string {
 		return "unknown-type"
 	case NodeTypeNode:
 		return "node"
+	case NodeTypeElem:
+		return "element-node"
+	case NodeTypeAttr:
+		return "attribute-node"
 	case NodeTypeText:
 		return "text-node"
 	case NodeTypeComment:
@@ -245,6 +251,13 @@ func (unary) expr() {}
 func axisStep(axis Axis, expr Expr) Expr {
 	return step{
 		axis: axis,
+		Expr: expr,
+	}
+}
+
+func attributeStep(expr Expr) Expr {
+	return step{
+		axis: AttributeAxis,
 		Expr: expr,
 	}
 }

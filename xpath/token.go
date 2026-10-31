@@ -129,9 +129,10 @@ const (
 	powConcat
 	powAdd
 	powMul
+	powPrefix
+	powPath
 	powCall
 	powGroup
-	powPrefix
 )
 
 var bindings = map[rune]int{
@@ -151,4 +152,6 @@ var bindings = map[rune]int{
 	And:    powAnd,
 	Or:     powOr,
 	Pipe:   powUnion,
+	Slash:  powPath,
+	Deep:   powPath,
 }

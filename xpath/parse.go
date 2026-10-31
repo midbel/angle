@@ -26,8 +26,8 @@ func NewParser(r io.Reader) *Parser {
 		Literal:  p.parseLiteral,
 		Number:   p.parseNumber,
 		Variable: p.parseVariable,
-		Slash:    p.parseSlash,
-		Deep:     p.parseDeep,
+		Slash:    p.parseRoot,
+		Deep:     p.parseRoot,
 		Attr:     p.parseAttribute,
 		Name:     p.parseName,
 		Mul:      p.parseName,
@@ -134,7 +134,7 @@ func (p *Parser) parseNodeTest() (Expr, bool, error) {
 	p.next()
 	p.next()
 	if !p.is(EndGrp) {
-		return nil, true, p.unexpectedToken()
+		return nil, true, fmt.Errorf("kind: %s", p.unexpectedToken())
 	}
 	p.next()
 	nt := typeTest{
@@ -154,7 +154,7 @@ func (p *Parser) parseCall(left Expr) (Expr, error) {
 		return nil, err
 	}
 	if !p.is(EndGrp) {
-		return nil, p.unexpectedToken()
+		return nil, fmt.Errorf("call: %s", p.unexpectedToken())
 	}
 	expr := call{
 		Name: n,
@@ -165,12 +165,12 @@ func (p *Parser) parseCall(left Expr) (Expr, error) {
 
 func (p *Parser) parseGroup() (Expr, error) {
 	p.next()
-	expr, err := p.startExpr(powGroup)
+	expr, err := p.startExpr(powLowest)
 	if err != nil {
 		return nil, err
 	}
 	if !p.is(EndGrp) {
-		return nil, p.unexpectedToken()
+		return nil, fmt.Errorf("group: %s", p.unexpectedToken())
 	}
 	p.next()
 	return expr, nil
@@ -233,23 +233,49 @@ func (p *Parser) parseBinary(left Expr) (Expr, error) {
 }
 
 func (p *Parser) parsePredicate(left Expr) (Expr, error) {
-	return nil, nil
+	p.next()
+	expr, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(EndPred) {
+		return nil, p.unexpectedToken()
+	}
+	p.next()
+	pt := predicate{
+		Expr:  left,
+		Check: expr,
+	}
+	return pt, nil
 }
 
-func (p *Parser) parseSlash() (Expr, error) {
-	return nil, nil
-}
-
-func (p *Parser) parseDeep() (Expr, error) {
-	return nil, nil
+func (p *Parser) parseRoot() (Expr, error) {
+	var r root
+	return p.parseStep(r)
 }
 
 func (p *Parser) parseStep(left Expr) (Expr, error) {
-	return nil, nil
+	var expr []Expr
+	expr = append(expr, left)
+	if p.is(Deep) {
+		expr = append(expr, descendantOrSelfStep())
+	}
+	p.next()
+	next, err := p.startExpr(powPath)
+	if err != nil {
+		return nil, err
+	}
+	if ps, ok := next.(path); ok {
+		expr = append(expr, ps...)
+	} else {
+		expr = append(expr, next)
+	}
+	return path(expr), nil
 }
 
 func (p *Parser) parseList(left Expr) (Expr, error) {
 	var expr []Expr
+	expr = append(expr, left)
 	for p.is(Comma) {
 		p.next()
 		e, err := p.startExpr(powUnion)
@@ -263,6 +289,7 @@ func (p *Parser) parseList(left Expr) (Expr, error) {
 
 func (p *Parser) parseUnion(left Expr) (Expr, error) {
 	var expr []Expr
+	expr = append(expr, left)
 	for p.is(Pipe) {
 		p.next()
 		e, err := p.startExpr(powUnion)
@@ -293,7 +320,7 @@ func (p *Parser) parseName() (Expr, error) {
 		p.next()
 	}
 	if !p.is(Mul) && !p.is(Name) {
-		return nil, p.unexpectedToken()
+		return nil, fmt.Errorf("name: %s", p.unexpectedToken())
 	}
 	if nt.Prefix == "" {
 		if expr, ok, err := p.parseNodeTest(); ok {
@@ -324,11 +351,21 @@ func (p *Parser) parseName() (Expr, error) {
 
 func (p *Parser) parseAttribute() (Expr, error) {
 	p.next()
-	expr, err := p.parseExpr()
-	if err != nil {
-		return nil, err
+	var nt name
+	if p.peekIs(Namespace) {
+		if !p.is(Mul) && !p.is(Name) {
+			return nil, fmt.Errorf("attribute: %s", p.unexpectedToken())
+		}
+		nt.Prefix = p.currentLiteral()
+		p.next()
+		p.next()
 	}
-	return attributeStep(expr), nil
+	if !p.is(Mul) && !p.is(Name) {
+		return nil, fmt.Errorf("attribute: %s", p.unexpectedToken())
+	}
+	nt.Name = p.currentLiteral()
+	p.next()
+	return attributeStep(nt), nil
 }
 
 func (p *Parser) parseAxis() (Axis, error) {
@@ -386,7 +423,7 @@ func (p *Parser) parseArgs() ([]Expr, error) {
 				return nil, fmt.Errorf("invalid syntax, expected expression after comma")
 			}
 		default:
-			return nil, p.unexpectedToken()
+			return nil, fmt.Errorf("arg: %s", p.unexpectedToken())
 		}
 	}
 	return list, nil

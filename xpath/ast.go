@@ -10,6 +10,23 @@ type Expr interface {
 	expr()
 }
 
+type path []Expr
+
+func (p path) String() string {
+	var str strings.Builder
+	str.WriteString("path(")
+	for i := range p {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(p[i].String())
+	}
+	str.WriteString(")")
+	return str.String()
+}
+
+func (path) expr() {}
+
 type union []Expr
 
 func (u union) String() string {
@@ -44,13 +61,13 @@ func (i list) String() string {
 
 func (list) expr() {}
 
-type Root struct{}
+type root struct{}
 
-func (Root) String() string {
+func (root) String() string {
 	return "root"
 }
 
-func (Root) expr() {}
+func (root) expr() {}
 
 type Axis uint8
 
@@ -157,7 +174,7 @@ type name struct {
 }
 
 func (n name) String() string {
-	return fmt.Sprintf("name(prefix: %s, name: %s)", n.Prefix, n.Name)
+	return fmt.Sprintf("name (prefix: %s, name: %s)", n.Prefix, n.Name)
 }
 
 func (name) expr() {}

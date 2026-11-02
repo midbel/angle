@@ -11,6 +11,7 @@ type NodeType uint8
 const (
 	DocumentNode NodeType = iota
 	ElementNode
+	AttrNode
 	TextNode
 	CommentNode
 	PINode
@@ -18,6 +19,8 @@ const (
 
 type Node interface {
 	Type() NodeType
+	Parent() Node
+	Content() string
 }
 
 type Namespace struct {
@@ -120,7 +123,19 @@ func (d *Document) Root() (Node, error) {
 	return nil, fmt.Errorf("missing root")
 }
 
-func (Document) Type() NodeType {
+func (d *Document) Content() string {
+	r, err := d.Root()
+	if err == nil {
+		return ""
+	}
+	return r.Content()
+}
+
+func (*Document) Parent() Node {
+	return nil
+}
+
+func (*Document) Type() NodeType {
 	return DocumentNode
 }
 
@@ -129,6 +144,8 @@ type Element struct {
 	NS         []Namespace
 	Attributes []Attribute
 	Children   []Node
+
+	parent Node
 }
 
 func NewElement(name Name) *Element {
@@ -139,6 +156,10 @@ func NewElement(name Name) *Element {
 
 func (e *Element) Leaf() bool {
 	return len(e.Children) == 0
+}
+
+func (e *Element) Parent() Node {
+	return e.parent
 }
 
 func (e *Element) Content() string {
@@ -216,14 +237,31 @@ func NewAttribute(name Name, value string) Attribute {
 	}
 }
 
+func (a Attribute) Parent() Node {
+	return nil
+}
+
+func (a Attribute) Content() string {
+	return a.Value
+}
+
+func (Attribute) Type() NodeType {
+	return AttrNode
+}
+
 type Text struct {
-	Value string
+	Value  string
+	parent Node
 }
 
 func NewText(text string) *Text {
 	return &Text{
 		Value: text,
 	}
+}
+
+func (t *Text) Parent() Node {
+	return t.parent
 }
 
 func (t *Text) Content() string {
@@ -235,7 +273,8 @@ func (*Text) Type() NodeType {
 }
 
 type Comment struct {
-	Value string
+	Value  string
+	parent Node
 }
 
 func NewComment(text string) *Comment {
@@ -244,13 +283,22 @@ func NewComment(text string) *Comment {
 	}
 }
 
+func (c *Comment) Parent() Node {
+	return c.parent
+}
+
+func (c *Comment) Content() string {
+	return c.Value
+}
+
 func (*Comment) Type() NodeType {
 	return CommentNode
 }
 
 type PI struct {
 	Name
-	Data string
+	Data   string
+	parent Node
 }
 
 func NewPI(name Name, data string) *PI {
@@ -258,6 +306,14 @@ func NewPI(name Name, data string) *PI {
 		Name: name,
 		Data: data,
 	}
+}
+
+func (p *PI) Parent() Node {
+	return p.parent
+}
+
+func (p *PI) Content() string {
+	return p.Data
 }
 
 func (*PI) Type() NodeType {

@@ -4,34 +4,34 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
-type Env struct {
+type Context struct {
 	namespaces map[string]string
 	vars       map[string]string
 }
 
-func NewEnv() *Env {
-	return &Env{
+func NewContext() *Context {
+	return &Context{
 		namespaces: make(map[string]string),
 		vars:       make(map[string]string),
 	}
 }
 
-type Context struct {
+type Focus struct {
 	Item
 	Index int
 	Size  int
 }
 
-func createContext(item Item, size, ix int) Context {
-	return Context{
+func createFocus(item Item, size, ix int) Focus {
+	return Focus{
 		Item:  item,
 		Index: ix,
 		Size:  size,
 	}
 }
 
-func (c Context) Sub(item Item, size, ix int) Context {
-	x := Context{
+func (c Focus) Sub(item Item, size, ix int) Focus {
+	x := Focus{
 		Item:  item,
 		Size:  size,
 		Index: ix,

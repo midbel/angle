@@ -7,43 +7,43 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
-func Find(r io.Reader, doc xml.Node, env *Env) (Sequence, error) {
+func Find(r io.Reader, doc xml.Node, ctx *Context) (Sequence, error) {
 	p := NewParser(r)
 	expr, err := p.Parse()
 	if err != nil {
 		return nil, err
 	}
 	it := newNodeItem(doc)
-	return eval(expr, createContext(it, 1, 1), env)
+	return eval(expr, createFocus(it, 1, 1), ctx)
 }
 
-func eval(expr Expr, ctx Context, env *Env) (Sequence, error) {
+func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 	switch e := expr.(type) {
 	case path:
-		return evalPath(e, ctx, env)
+		return evalPath(e, curr, ctx)
 	case root:
-		return evalRoot(e, ctx, env)
+		return evalRoot(e, curr, ctx)
 	case step:
-		return evalStep(e, ctx, env)
+		return evalStep(e, curr, ctx)
 	case name:
-		return evalName(e, ctx, env)
+		return evalName(e, curr, ctx)
 	case typeTest:
-		return evalType(e, ctx, env)
+		return evalType(e, curr, ctx)
 	default:
 		return nil, fmt.Errorf("unsupported expression")
 	}
 	return nil, nil
 }
 
-func evalPath(expr path, ctx Context, env *Env) (Sequence, error) {
-	seq := Singleton(ctx.Item)
+func evalPath(expr path, curr Focus, ctx *Context) (Sequence, error) {
+	seq := Singleton(curr.Item)
 	for i := range expr {
 		var res Sequence
 		for j := range seq {
 			if seq[j].Atomic() {
 				continue
 			}
-			sub, err := eval(expr[i], ctx.Sub(seq[j], seq.Len(), j+1), env)
+			sub, err := eval(expr[i], curr.Sub(seq[j], seq.Len(), j+1), ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -54,8 +54,8 @@ func evalPath(expr path, ctx Context, env *Env) (Sequence, error) {
 	return seq, nil
 }
 
-func evalRoot(_ root, ctx Context, env *Env) (Sequence, error) {
-	node, err := currentNode(ctx.Item)
+func evalRoot(_ root, curr Focus, ctx *Context) (Sequence, error) {
+	node, err := currentNode(curr.Item)
 	if err != nil {
 		return nil, err
 	}
@@ -66,23 +66,23 @@ func evalRoot(_ root, ctx Context, env *Env) (Sequence, error) {
 	return Singleton(n), nil
 }
 
-func evalStep(expr step, ctx Context, env *Env) (Sequence, error) {
+func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 	switch expr.axis {
 	default:
 		return nil, fmt.Errorf("unsupported axis")
 	case SelfAxis:
-		return eval(expr.Expr, ctx.Sub(ctx.Item, 1, 1), env)
+		return eval(expr.Expr, curr.Sub(curr.Item, 1, 1), ctx)
 	case ParentAxis:
-		n, err := currentNode(ctx.Item)
+		n, err := currentNode(curr.Item)
 		if err != nil {
 			return nil, err
 		}
 		if p := n.Parent(); p != nil {
-			i := newNodeItem(p)
-			return eval(expr.Expr, ctx.Sub(i, 1, 1), env)
+			it := newNodeItem(p)
+			return eval(expr.Expr, curr.Sub(it, 1, 1), ctx)
 		}
 	case ChildAxis:
-		node, err := currentNode(ctx.Item)
+		node, err := currentNode(curr.Item)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ func evalStep(expr step, ctx Context, env *Env) (Sequence, error) {
 		)
 		for i := range nodes {
 			it := newNodeItem(nodes[i])
-			res, err := eval(expr.Expr, ctx.Sub(it, len(nodes), i+1), env)
+			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -103,8 +103,8 @@ func evalStep(expr step, ctx Context, env *Env) (Sequence, error) {
 	return nil, nil
 }
 
-func evalName(expr name, ctx Context, env *Env) (Sequence, error) {
-	node, err := currentNode(ctx.Item)
+func evalName(expr name, curr Focus, ctx *Context) (Sequence, error) {
+	node, err := currentNode(curr.Item)
 	if err != nil {
 		return nil, err
 	}
@@ -122,14 +122,14 @@ func evalName(expr name, ctx Context, env *Env) (Sequence, error) {
 			return nil, nil
 		}
 	}
-	return Singleton(ctx.Node), nil
+	return Singleton(curr.Node), nil
 }
 
-func evalType(expr typeTest, ctx Context, env *Env) (Sequence, error) {
+func evalType(expr typeTest, curr Focus, ctx *Context) (Sequence, error) {
 	var nt xml.NodeType
 	switch expr.Kind {
 	case NodeTypeNode:
-		return Singleton(ctx.Item), nil
+		return Singleton(curr.Item), nil
 	case NodeTypeElem:
 		nt = xml.ElementNode
 	case NodeTypeAttr:
@@ -143,7 +143,7 @@ func evalType(expr typeTest, ctx Context, env *Env) (Sequence, error) {
 	default:
 		return nil, nil
 	}
-	node, err := currentNode(ctx.Item)
+	node, err := currentNode(curr.Item)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,7 @@ import (
 )
 
 type Context struct {
-	xml.Node
+	Item
 	Index int
 	Size  int
 
@@ -13,9 +13,9 @@ type Context struct {
 	env        map[string]string
 }
 
-func createContext(node xml.Node, size, ix int) Context {
+func createContext(item Item, size, ix int) Context {
 	return Context{
-		Node:       node,
+		Item:       item,
 		Index:      ix,
 		Size:       size,
 		namespaces: make(map[string]string),
@@ -23,9 +23,9 @@ func createContext(node xml.Node, size, ix int) Context {
 	}
 }
 
-func (c Context) Sub(node xml.Node, size, ix int) Context {
+func (c Context) Sub(item Item, size, ix int) Context {
 	x := Context{
-		Node:       node,
+		Item:       item,
 		Size:       size,
 		Index:      ix,
 		namespaces: c.namespaces,

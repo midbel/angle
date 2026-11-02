@@ -13,7 +13,8 @@ func Find(r io.Reader, doc xml.Node) (Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	return eval(expr, createContext(doc, 1, 1))
+	it := newNodeItem(doc)
+	return eval(expr, createContext(it, 1, 1))
 }
 
 func eval(expr Expr, ctx Context) (Sequence, error) {
@@ -42,9 +43,7 @@ func evalPath(expr path, ctx Context) (Sequence, error) {
 			if seq[j].Atomic() {
 				continue
 			}
-			n := seq[j].Node()
-
-			sub, err := eval(expr[i], ctx.Sub(n, seq.Len(), j+1))
+			sub, err := eval(expr[i], ctx.Sub(seq[j], seq.Len(), j+1))
 			if err != nil {
 				return nil, err
 			}
@@ -56,7 +55,11 @@ func evalPath(expr path, ctx Context) (Sequence, error) {
 }
 
 func evalRoot(_ root, ctx Context) (Sequence, error) {
-	n := traverseRoot(ctx.Node)
+	node, err := currentNode(ctx.Item)
+	if err != nil {
+		return nil, err
+	}
+	n := traverseRoot(node)
 	if n == nil {
 		return nil, nil
 	}
@@ -68,19 +71,28 @@ func evalStep(expr step, ctx Context) (Sequence, error) {
 	default:
 		return nil, fmt.Errorf("unsupported axis")
 	case SelfAxis:
-		return eval(expr.Expr, ctx.Sub(ctx.Node, 1, 1))
+		return eval(expr.Expr, ctx.Sub(ctx.Item, 1, 1))
 	case ParentAxis:
-		p := ctx.Node.Parent()
-		if p != nil {
-			return eval(expr.Expr, ctx.Sub(p, 1, 1))
+		n, err := currentNode(ctx.Item)
+		if err != nil {
+			return nil, err
+		}
+		if p := n.Parent(); p != nil {
+			i := newNodeItem(p)
+			return eval(expr.Expr, ctx.Sub(i, 1, 1))
 		}
 	case ChildAxis:
+		node, err := currentNode(ctx.Item)
+		if err != nil {
+			return nil, err
+		}
 		var (
-			nodes = traverseChild(ctx.Node)
+			nodes = traverseChild(node)
 			seq   Sequence
 		)
 		for i := range nodes {
-			res, err := eval(expr.Expr, ctx.Sub(nodes[i], len(nodes), i+1))
+			it := newNodeItem(nodes[i])
+			res, err := eval(expr.Expr, ctx.Sub(it, len(nodes), i+1))
 			if err != nil {
 				return nil, err
 			}
@@ -92,7 +104,11 @@ func evalStep(expr step, ctx Context) (Sequence, error) {
 }
 
 func evalName(expr name, ctx Context) (Sequence, error) {
-	n, ok := getNameFromNode(ctx.Node)
+	node, err := currentNode(ctx.Item)
+	if err != nil {
+		return nil, err
+	}
+	n, ok := getNameFromNode(node)
 	if !ok {
 		return nil, nil
 	}
@@ -113,7 +129,7 @@ func evalType(expr typeTest, ctx Context) (Sequence, error) {
 	var nt xml.NodeType
 	switch expr.Kind {
 	case NodeTypeNode:
-		return Singleton(ctx.Node), nil
+		return Singleton(ctx.Item), nil
 	case NodeTypeElem:
 		nt = xml.ElementNode
 	case NodeTypeAttr:
@@ -127,10 +143,14 @@ func evalType(expr typeTest, ctx Context) (Sequence, error) {
 	default:
 		return nil, nil
 	}
-	if t := ctx.Node.Type(); t != nt {
+	node, err := currentNode(ctx.Item)
+	if err != nil {
+		return nil, err
+	}
+	if t := node.Type(); t != nt {
 		return nil, nil
 	}
-	return Singleton(ctx.Node), nil
+	return Singleton(node), nil
 }
 
 func currentNode(item Item) (xml.Node, error) {

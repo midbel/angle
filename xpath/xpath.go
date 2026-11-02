@@ -4,32 +4,37 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
+type Env struct {
+	namespaces map[string]string
+	vars       map[string]string
+}
+
+func NewEnv() *Env {
+	return &Env{
+		namespaces: make(map[string]string),
+		vars:       make(map[string]string),
+	}
+}
+
 type Context struct {
 	Item
 	Index int
 	Size  int
-
-	namespaces map[string]string
-	env        map[string]string
 }
 
 func createContext(item Item, size, ix int) Context {
 	return Context{
-		Item:       item,
-		Index:      ix,
-		Size:       size,
-		namespaces: make(map[string]string),
-		env:        make(map[string]string),
+		Item:  item,
+		Index: ix,
+		Size:  size,
 	}
 }
 
 func (c Context) Sub(item Item, size, ix int) Context {
 	x := Context{
-		Item:       item,
-		Size:       size,
-		Index:      ix,
-		namespaces: c.namespaces,
-		env:        c.env,
+		Item:  item,
+		Size:  size,
+		Index: ix,
 	}
 	return x
 }

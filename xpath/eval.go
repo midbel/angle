@@ -13,12 +13,7 @@ func Find(r io.Reader, doc xml.Node) (Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx := Context{
-		Node:  doc,
-		Index: 1,
-		Size:  1,
-	}
-	return eval(expr, ctx)
+	return eval(expr, createContext(doc, 1, 1))
 }
 
 func eval(expr Expr, ctx Context) (Sequence, error) {
@@ -31,6 +26,8 @@ func eval(expr Expr, ctx Context) (Sequence, error) {
 		return evalStep(e, ctx)
 	case name:
 		return evalName(e, ctx)
+	case typeTest:
+		return evalType(e, ctx)
 	default:
 		return nil, fmt.Errorf("unsupported expression")
 	}
@@ -38,29 +35,52 @@ func eval(expr Expr, ctx Context) (Sequence, error) {
 }
 
 func evalPath(expr path, ctx Context) (Sequence, error) {
-	return nil, nil
+	seq := Singleton(ctx.Node)
+	for i := range expr {
+		var res Sequence
+		for j := range seq {
+			if seq[j].Atomic() {
+				continue
+			}
+			n := seq[j].Node()
+
+			sub, err := eval(expr[i], ctx.Sub(n, seq.Len(), j+1))
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, sub...)
+		}
+		seq = res
+	}
+	return seq, nil
 }
 
-func evalRoot(expr root, ctx Context) (Sequence, error) {
-	return nil, nil
+func evalRoot(_ root, ctx Context) (Sequence, error) {
+	n := traverseRoot(ctx.Node)
+	if n == nil {
+		return nil, nil
+	}
+	return Singleton(n), nil
 }
 
 func evalStep(expr step, ctx Context) (Sequence, error) {
 	switch expr.axis {
 	default:
 		return nil, fmt.Errorf("unsupported axis")
+	case SelfAxis:
+		return eval(expr.Expr, ctx.Sub(ctx.Node, 1, 1))
+	case ParentAxis:
+		p := ctx.Node.Parent()
+		if p != nil {
+			return eval(expr.Expr, ctx.Sub(p, 1, 1))
+		}
 	case ChildAxis:
 		var (
 			nodes = traverseChild(ctx.Node)
-			sub   Context
 			seq   Sequence
 		)
-		sub.Size = len(nodes)
 		for i := range nodes {
-			sub.Index = i + 1
-			sub.Node = nodes[i]
-
-			res, err := eval(expr.Expr, sub)
+			res, err := eval(expr.Expr, ctx.Sub(nodes[i], len(nodes), i+1))
 			if err != nil {
 				return nil, err
 			}
@@ -87,6 +107,49 @@ func evalName(expr name, ctx Context) (Sequence, error) {
 		}
 	}
 	return Singleton(ctx.Node), nil
+}
+
+func evalType(expr typeTest, ctx Context) (Sequence, error) {
+	var nt xml.NodeType
+	switch expr.Kind {
+	case NodeTypeNode:
+		return Singleton(ctx.Node), nil
+	case NodeTypeElem:
+		nt = xml.ElementNode
+	case NodeTypeAttr:
+		nt = xml.AttrNode
+	case NodeTypeText:
+		nt = xml.TextNode
+	case NodeTypeComment:
+		nt = xml.CommentNode
+	case NodeTypePI:
+		nt = xml.PINode
+	default:
+		return nil, nil
+	}
+	if t := ctx.Node.Type(); t != nt {
+		return nil, nil
+	}
+	return Singleton(ctx.Node), nil
+}
+
+func currentNode(item Item) (xml.Node, error) {
+	if item.Atomic() {
+		return nil, fmt.Errorf("node item expected")
+	}
+	return item.Node(), nil
+}
+
+func traverseRoot(node xml.Node) xml.Node {
+	root := node
+	for {
+		tmp := root.Parent()
+		if tmp == nil {
+			break
+		}
+		root = tmp
+	}
+	return root
 }
 
 func traverseChild(node xml.Node) []xml.Node {

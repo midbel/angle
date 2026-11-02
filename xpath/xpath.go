@@ -8,6 +8,30 @@ type Context struct {
 	xml.Node
 	Index int
 	Size  int
+
+	namespaces map[string]string
+	env        map[string]string
+}
+
+func createContext(node xml.Node, size, ix int) Context {
+	return Context{
+		Node:       node,
+		Index:      ix,
+		Size:       size,
+		namespaces: make(map[string]string),
+		env:        make(map[string]string),
+	}
+}
+
+func (c Context) Sub(node xml.Node, size, ix int) Context {
+	x := Context{
+		Node:       node,
+		Size:       size,
+		Index:      ix,
+		namespaces: c.namespaces,
+		env:        c.env,
+	}
+	return x
 }
 
 type Item interface {
@@ -20,12 +44,18 @@ type Item interface {
 type Sequence []Item
 
 func Singleton(value any) Sequence {
+	var it Item
 	switch v := value.(type) {
 	case xml.Node:
-		return newNodeItem(v)
+		it = newNodeItem(v)
 	default:
-		return newAtomicItem(value)
+		it = newAtomicItem(value)
 	}
+	return Sequence{it}
+}
+
+func (s Sequence) Len() int {
+	return len(s)
 }
 
 type nodeItem struct {

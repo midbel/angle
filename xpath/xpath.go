@@ -19,8 +19,23 @@ type Item interface {
 
 type Sequence []Item
 
+func Singleton(value any) Sequence {
+	switch v := value.(type) {
+	case xml.Node:
+		return newNodeItem(v)
+	default:
+		return newAtomicItem(value)
+	}
+}
+
 type nodeItem struct {
 	node xml.Node
+}
+
+func newNodeItem(node xml.Node) Item {
+	return nodeItem{
+		node: node,
+	}
 }
 
 func (i nodeItem) Node() xml.Node {
@@ -41,6 +56,12 @@ func (nodeItem) Atomic() bool {
 
 type atomicItem struct {
 	value any
+}
+
+func newAtomicItem(value any) Item {
+	return atomicItem{
+		value: value,
+	}
 }
 
 func (atomicItem) Node() xml.Node {

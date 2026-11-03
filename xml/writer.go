@@ -10,7 +10,10 @@ import (
 
 func WriteNode(w io.Writer, node Node, depth int) error {
 	e := NewEncoder(w)
-	return e.encodeNode(node)
+	if err := e.encodeNode(node); err != nil {
+		return err
+	}
+	return e.flush()
 }
 
 type Encoder struct {
@@ -37,7 +40,7 @@ func (e *Encoder) Encode(doc *Document) error {
 			return err
 		}
 	}
-	return e.writer.Flush()
+	return e.flush()
 }
 
 func (e *Encoder) encodeNode(n Node) error {
@@ -124,6 +127,10 @@ func (e *Encoder) isBlock() bool {
 		return true
 	}
 	return false
+}
+
+func (e *Encoder) flush() error {
+	return e.writer.Flush()
 }
 
 func (e *Encoder) reset() {

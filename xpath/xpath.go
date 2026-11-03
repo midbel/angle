@@ -60,8 +60,13 @@ type Item interface {
 type Sequence []Item
 
 func Singleton(value any) Sequence {
+	if it, ok := value.(Item); ok {
+		return Sequence{it}
+	}
 	var it Item
 	switch v := value.(type) {
+	case nodeItem:
+	case atomicItem:
 	case xml.Node:
 		it = newNodeItem(v)
 	default:

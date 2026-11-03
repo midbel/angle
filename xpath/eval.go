@@ -122,7 +122,7 @@ func evalName(expr name, curr Focus, ctx *Context) (Sequence, error) {
 			return nil, nil
 		}
 	}
-	return Singleton(curr.Node), nil
+	return Singleton(node), nil
 }
 
 func evalType(expr typeTest, curr Focus, ctx *Context) (Sequence, error) {

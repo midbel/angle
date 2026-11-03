@@ -52,10 +52,13 @@ var queryCmd = cli.Command{
 	Handler: &queryCommand{},
 }
 
-type queryCommand struct{}
+type queryCommand struct {
+	Depth int
+}
 
 func (c queryCommand) Run(args []string) error {
 	set := cli.NewFlagSet("query")
+	set.IntVar(&c.Depth, "d", -1, "depth")
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -79,12 +82,13 @@ func (c queryCommand) Run(args []string) error {
 	}
 	for i := range items {
 		if items[i].Atomic() {
-			fmt.Println(items[i].Value())
+			fmt.Fprintln(cli.Stdout, items[i].Value())
 		} else {
-			err = xml.WriteNode(cli.Stdout, items[i].Node(), 0)
+			err = xml.WriteNode(cli.Stdout, items[i].Node(), c.Depth)
 			if err != nil {
 				return err
 			}
+			fmt.Fprintln(cli.Stdout)
 		}
 	}
 	return nil

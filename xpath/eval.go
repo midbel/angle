@@ -99,6 +99,28 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 			seq = append(seq, res...)
 		}
 		return seq, nil
+	case DescendantAxis, DescendantOrSelfAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			seq      Sequence
+			traverse = traverseDeep
+		)
+		if expr.axis == DescendantOrSelfAxis {
+			traverse = traverseDeepAndSelf
+		}
+		nodes := traverse(node, 0)
+		for i := range nodes {
+			it := newNodeItem(nodes[i])
+			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
+			if err != nil {
+				return nil, err
+			}
+			seq = append(seq, res...)
+		}
+		return seq, nil
 	}
 	return nil, nil
 }
@@ -170,6 +192,27 @@ func traverseRoot(node xml.Node) xml.Node {
 		root = tmp
 	}
 	return root
+}
+
+func traverseDeepAndSelf(node xml.Node, depth int) []xml.Node {
+	nodes := []xml.Node{node}
+	others := traverseDeep(node, depth)
+	return append(nodes, others...)
+}
+
+func traverseDeep(node xml.Node, depth int) []xml.Node {
+	var nodes []xml.Node
+
+	var walk func(xml.Node)
+	walk = func(n xml.Node) {
+		for _, child := range traverseChild(n) {
+			nodes = append(nodes, child)
+			walk(child)
+		}
+	}
+
+	walk(node)
+	return nodes
 }
 
 func traverseChild(node xml.Node) []xml.Node {

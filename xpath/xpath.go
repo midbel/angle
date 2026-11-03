@@ -4,15 +4,26 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
+type Env[T any] map[string]T
+
+func (e Env[T]) Resolve(ident string) (T, error) {
+	var t T
+	return t, nil
+}
+
+func (e Env[T]) Define(ident string, value T) {
+	e[ident] = value
+}
+
 type Context struct {
-	namespaces map[string]string
-	vars       map[string]string
+	namespaces Env[string]
+	vars       Env[string]
 }
 
 func NewContext() *Context {
 	return &Context{
-		namespaces: make(map[string]string),
-		vars:       make(map[string]string),
+		namespaces: make(Env[string]),
+		vars:       make(Env[string]),
 	}
 }
 

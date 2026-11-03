@@ -174,16 +174,16 @@ func (c treeCommand) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	opts := trellis.ScreenOptions{
-		RenderOptions: trellis.RenderOptions{
-			Size:    trellis.NewDimension(120, 50),
-			Output:  trellis.OutputScreen,
-			Orient:  trellis.CompactLayout,
-			Spacing: 4,
-		},
-		Style: trellis.ConnectorUnicode,
+	rOpts := trellis.RenderOptions{
+		Size:    trellis.NewDimension(120, 50),
+		Orient:  trellis.CompactLayout,
+		Spacing: 4,
 	}
-	return trellis.Render(cli.Stdout, root, &opts)
+	sOpts := trellis.OutputOptions{
+		Mode:      trellis.OutputScreen,
+		Connector: trellis.ConnectorUnicode,
+	}
+	return trellis.Render(cli.Stdout, root, &rOpts, &sOpts)
 }
 
 func (c treeCommand) buildTree(file string) (*trellis.Node, error) {

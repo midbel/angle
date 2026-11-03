@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/midbel/angle/xml"
+	"github.com/midbel/angle/xpath"
 	"github.com/midbel/cli"
 	"github.com/midbel/trellis"
 )
@@ -41,6 +42,52 @@ func main() {
 		}
 		os.Exit(1)
 	}
+}
+
+var queryCmd = cli.Command{
+	Name:    "query",
+	Alias:   []string{"find"},
+	Summary: "",
+	Usage:   "query <expr> <file>",
+	Handler: &queryCommand{},
+}
+
+type queryCommand struct{}
+
+func (c queryCommand) Run(args []string) error {
+	set := cli.NewFlagSet("query")
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	if set.NArg() != 2 {
+		return cli.ErrUsage
+	}
+	r, err := os.Open(set.Arg(1))
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	doc, err := xml.Decode(r)
+	if err != nil {
+		return err
+	}
+
+	items, err := xpath.Find(set.Arg(0), doc, xpath.NewContext())
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		if items[i].Atomic() {
+			fmt.Println(items[i].Value())
+		} else {
+			err = xml.WriteNode(cli.Stdout, items[i].Node(), 0)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 var scanCmd = cli.Command{
@@ -199,6 +246,7 @@ func (c treeCommand) buildTree(file string) (*trellis.Node, error) {
 func prepare() *cli.CommandTrie {
 	root := cli.New()
 	root.Register(single("tokenize"), &scanCmd)
+	root.Register(single("query"), &queryCmd)
 	root.Register(single("echo"), &echoCmd)
 	root.Register(single("format"), &fmtCmd)
 	root.Register(single("tree"), &treeCmd)

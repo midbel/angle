@@ -2,13 +2,13 @@ package xpath
 
 import (
 	"fmt"
-	"io"
+	"strings"
 
 	"github.com/midbel/angle/xml"
 )
 
-func Find(r io.Reader, doc xml.Node, ctx *Context) (Sequence, error) {
-	p := NewParser(r)
+func Find(query string, doc xml.Node, ctx *Context) (Sequence, error) {
+	p := NewParser(strings.NewReader(query))
 	expr, err := p.Parse()
 	if err != nil {
 		return nil, err

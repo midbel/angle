@@ -8,6 +8,11 @@ import (
 	"unicode/utf8"
 )
 
+func WriteNode(w io.Writer, node Node, depth int) error {
+	e := NewEncoder(w)
+	return e.encodeNode(node)
+}
+
 type Encoder struct {
 	writer *Writer
 	depth  int

@@ -73,17 +73,17 @@ type Axis uint8
 
 const (
 	ChildAxis Axis = 1 + iota
+	SelfAxis
 	DescendantAxis
+	DescendantOrSelfAxis
 	ParentAxis
 	AncestorAxis
-	FollowingSiblingAxis
-	PrecedingSiblingAxis
-	FollowingAxis
-	PrecedingAxis
-	AttributeAxis
-	SelfAxis
-	DescendantOrSelfAxis
 	AncestorOrSelfAxis
+	FollowingAxis
+	FollowingSiblingAxis
+	PrecedingAxis
+	PrecedingSiblingAxis
+	AttributeAxis
 )
 
 func (a Axis) String() string {
@@ -168,16 +168,16 @@ func (t typeTest) String() string {
 
 func (typeTest) expr() {}
 
-type name struct {
+type nameTest struct {
 	Prefix string
 	Name   string
 }
 
-func (n name) String() string {
+func (n nameTest) String() string {
 	return fmt.Sprintf("name (prefix: %s, name: %s)", n.Prefix, n.Name)
 }
 
-func (name) expr() {}
+func (nameTest) expr() {}
 
 type predicate struct {
 	Expr
@@ -191,7 +191,7 @@ func (p predicate) String() string {
 func (p predicate) expr() {}
 
 type call struct {
-	Name name
+	Name nameTest
 	Args []Expr
 }
 

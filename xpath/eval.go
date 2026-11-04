@@ -25,10 +25,20 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 		return evalRoot(e, curr, ctx)
 	case step:
 		return evalStep(e, curr, ctx)
-	case name:
+	case nameTest:
 		return evalName(e, curr, ctx)
+	case predicate:
+		return evalPredicate(e, curr, ctx)
 	case typeTest:
 		return evalType(e, curr, ctx)
+	case binary:
+		return evalBinary(e, curr, ctx)
+	case unary:
+		return evalUnary(e, curr, ctx)
+	case number:
+		return evalNumber(e, curr, ctx)
+	case literal:
+		return evalLiteral(e, curr, ctx)
 	default:
 		return nil, fmt.Errorf("unsupported expression")
 	}
@@ -143,7 +153,7 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 	return nil, nil
 }
 
-func evalName(expr name, curr Focus, ctx *Context) (Sequence, error) {
+func evalName(expr nameTest, curr Focus, ctx *Context) (Sequence, error) {
 	node, err := currentNode(curr.Item)
 	if err != nil {
 		return nil, err
@@ -191,6 +201,38 @@ func evalType(expr typeTest, curr Focus, ctx *Context) (Sequence, error) {
 		return nil, nil
 	}
 	return Singleton(node), nil
+}
+
+func evalPredicate(expr predicate, curr Focus, ctx *Context) (Sequence, error) {
+	seq, err := eval(expr.Expr, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	var res Sequence
+	for i := range seq {
+		sub, err := eval(expr.Check, curr.Sub(seq[i], seq.Len(), i+1), ctx)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, sub...)
+	}
+	return res, nil
+}
+
+func evalBinary(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalUnary(expr unary, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalNumber(expr number, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
 }
 
 func currentNode(item Item) (xml.Node, error) {

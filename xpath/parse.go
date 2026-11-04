@@ -144,7 +144,7 @@ func (p *Parser) parseNodeTest() (Expr, bool, error) {
 }
 
 func (p *Parser) parseCall(left Expr) (Expr, error) {
-	n, ok := left.(name)
+	n, ok := left.(nameTest)
 	if !ok {
 		return nil, fmt.Errorf("name expected for function")
 	}
@@ -304,7 +304,7 @@ func (p *Parser) parseUnion(left Expr) (Expr, error) {
 func (p *Parser) parseName() (Expr, error) {
 	var (
 		st  step
-		nt  name
+		nt  nameTest
 		err error
 	)
 	st.axis, err = p.parseAxis()
@@ -351,7 +351,7 @@ func (p *Parser) parseName() (Expr, error) {
 
 func (p *Parser) parseAttribute() (Expr, error) {
 	p.next()
-	var nt name
+	var nt nameTest
 	if p.peekIs(Namespace) {
 		if !p.is(Mul) && !p.is(Name) {
 			return nil, fmt.Errorf("attribute: %s", p.unexpectedToken())

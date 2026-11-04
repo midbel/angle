@@ -75,6 +75,14 @@ func Singleton(value any) Sequence {
 	return Sequence{it}
 }
 
+func (s Sequence) Empty() bool {
+	return s.Len() == 0
+}
+
+func (s Sequence) Singleton() bool {
+	return s.Len() == 1
+}
+
 func (s Sequence) Len() int {
 	return len(s)
 }
@@ -94,7 +102,7 @@ func (i nodeItem) Node() xml.Node {
 }
 
 func (i nodeItem) Value() any {
-	return nil
+	return i.Node
 }
 
 func (i nodeItem) True() bool {

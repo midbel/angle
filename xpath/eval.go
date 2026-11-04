@@ -1,11 +1,23 @@
 package xpath
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/midbel/angle/xml"
 )
+
+var (
+	ErrComparable = errors.New("values are not comparable")
+	ErrEval       = errors.New("expression can not be evaluate")
+	ErrAtomic     = errors.New("atomic value")
+)
+
+func compareError(left, right any) error {
+	return fmt.Errorf("%w: %v, %v", ErrComparable, left, right)
+}
 
 func Find(query string, doc xml.Node, ctx *Context) (Sequence, error) {
 	p := NewParser(strings.NewReader(query))
@@ -23,6 +35,8 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 		return evalPath(e, curr, ctx)
 	case root:
 		return evalRoot(e, curr, ctx)
+	case current:
+		return evalCurrent(e, curr, ctx)
 	case step:
 		return evalStep(e, curr, ctx)
 	case nameTest:
@@ -40,7 +54,7 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 	case literal:
 		return evalLiteral(e, curr, ctx)
 	default:
-		return nil, fmt.Errorf("unsupported expression")
+		return nil, ErrEval
 	}
 	return nil, nil
 }
@@ -51,7 +65,7 @@ func evalPath(expr path, curr Focus, ctx *Context) (Sequence, error) {
 		var res Sequence
 		for j := range seq {
 			if seq[j].Atomic() {
-				continue
+				return nil, fmt.Errorf("%w not allow in path", ErrAtomic)
 			}
 			sub, err := eval(expr[i], curr.Sub(seq[j], seq.Len(), j+1), ctx)
 			if err != nil {
@@ -76,11 +90,18 @@ func evalRoot(_ root, curr Focus, ctx *Context) (Sequence, error) {
 	return Singleton(n), nil
 }
 
+func evalCurrent(_ current, curr Focus, ctx *Context) (Sequence, error) {
+	return Singleton(curr.Item), nil
+}
+
 func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 	switch expr.axis {
 	default:
 		return nil, fmt.Errorf("unsupported axis")
 	case SelfAxis:
+		if curr.Item.Atomic() {
+			return nil, fmt.Errorf("%w not allowed with axis", ErrAtomic)
+		}
 		return eval(expr.Expr, curr.Sub(curr.Item, 1, 1), ctx)
 	case AttributeAxis:
 		node, err := currentNode(curr.Item)
@@ -88,7 +109,7 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 			return nil, err
 		}
 		var (
-			seq Sequence
+			seq   Sequence
 			attrs = traverseAttributes(node)
 		)
 		for i, a := range attrs {
@@ -214,13 +235,106 @@ func evalPredicate(expr predicate, curr Focus, ctx *Context) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, sub...)
+		ok, err := isMatch(sub, i+1)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			res = append(res, seq[i])
+		}
 	}
 	return res, nil
 }
 
 func evalBinary(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	switch expr.op {
+	case Add, Sub, Mul, Div, Mod:
+		return evalArithmetic(expr, curr, ctx)
+	case Concat:
+		return evalConcat(expr, curr, ctx)
+	case Eq, Ne, Lt, Le, Gt, Ge:
+		return evalComparison(expr, curr, ctx)
+	case And, Or:
+		return evalLogical(expr, curr, ctx)
+	default:
+		return nil, fmt.Errorf("unsupported binary operator")
+	}
+}
+
+func evalArithmetic(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	var (
+		value float64
+		err   error
+	)
+	seq1, err := eval(expr.left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	seq2, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch expr.op {
+	case Add:
+		value, err = doAdd(seq1, seq2)
+	case Sub:
+		value, err = doSub(seq1, seq2)
+	case Mul:
+		value, err = doMul(seq1, seq2)
+	case Div:
+		value, err = doDiv(seq1, seq2)
+	case Mod:
+		value, err = doMod(seq1, seq2)
+	default:
+		err = fmt.Errorf("unsupported arithmetic operator")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return Singleton(value), nil
+}
+
+func evalConcat(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 	return nil, nil
+}
+
+func evalLogical(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalComparison(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	var (
+		value any
+		err   error
+	)
+	seq1, err := eval(expr.left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	seq2, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch expr.op {
+	case Eq:
+		value, err = isEq(seq1, seq2)
+	case Ne:
+		value, err = isNe(seq1, seq2)
+	case Lt:
+		value, err = isLt(seq1, seq2)
+	case Le:
+		value, err = isLe(seq1, seq2)
+	case Gt:
+		value, err = isGt(seq1, seq2)
+	case Ge:
+		value, err = isGe(seq1, seq2)
+	default:
+		err = fmt.Errorf("unsupported comparison operator")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return Singleton(value), nil
 }
 
 func evalUnary(expr unary, curr Focus, ctx *Context) (Sequence, error) {
@@ -228,11 +342,265 @@ func evalUnary(expr unary, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalNumber(expr number, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	return Singleton(expr.value), nil
 }
 
 func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	return Singleton(expr.str), nil
+}
+
+func isEq(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return nearlyEqual(e, x), nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e == x, nil
+		case bool:
+			x, ok := right.Value().(bool)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e == x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func isNe(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return !nearlyEqual(e, x), nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e != x, nil
+		case bool:
+			x, ok := right.Value().(bool)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e != x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func isGt(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e > x, nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e > x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func isGe(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e > x || nearlyEqual(e, x), nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e >= x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func isLt(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e < x, nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e < x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func isLe(left, right Sequence) (bool, error) {
+	return compare(left, right, func(left, right Item) (bool, error) {
+		switch e := left.Value().(type) {
+		case float64:
+			x, ok := right.Value().(float64)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e < x || nearlyEqual(e, x), nil
+		case string:
+			x, ok := right.Value().(string)
+			if !ok {
+				return false, compareError(e, right.Value())
+			}
+			return e <= x, nil
+		default:
+			return false, compareError(left.Value(), right.Value())
+		}
+	})
+}
+
+func nearlyEqual(left, right float64) bool {
+	if left == right {
+		return true
+	}
+	return math.Abs(left-right) < 0.000001
+}
+
+func compare(left, right Sequence, cmp func(left, right Item) (bool, error)) (bool, error) {
+	if left.Empty() || right.Empty() {
+		return false, nil
+	}
+	for i := range left {
+		for j := range right {
+			ok, err := cmp(left[i], right[j])
+			if ok || err != nil {
+				return ok, err
+			}
+		}
+	}
+	return false, nil
+}
+
+func doAdd(left, right Sequence) (float64, error) {
+	return compute(left, right, func(left, right float64) (float64, error) {
+		return left + right, nil
+	})
+}
+
+func doSub(left, right Sequence) (float64, error) {
+	return compute(left, right, func(left, right float64) (float64, error) {
+		return left - right, nil
+	})
+}
+
+func doMul(left, right Sequence) (float64, error) {
+	return compute(left, right, func(left, right float64) (float64, error) {
+		return left * right, nil
+	})
+}
+
+func doDiv(left, right Sequence) (float64, error) {
+	return compute(left, right, func(left, right float64) (float64, error) {
+		if right == 0 {
+			return 0, fmt.Errorf("division by zeri")
+		}
+		return left / right, nil
+	})
+}
+
+func doMod(left, right Sequence) (float64, error) {
+	return compute(left, right, func(left, right float64) (float64, error) {
+		if right == 0 {
+			return 0, fmt.Errorf("division by zeri")
+		}
+		return math.Mod(left, right), nil
+	})
+}
+
+func compute(left, right Sequence, do func(left, right float64) (float64, error)) (float64, error) {
+	if left.Empty() || right.Empty() {
+		return 0, nil
+	}
+	if left.Len() != 1 || right.Len() != 1 {
+		return 0, fmt.Errorf("singletons sequence expected on arithmetic")
+	}
+	x1, ok := left[0].Value().(float64)
+	if !ok {
+		return 0, fmt.Errorf("number expected on left side of arithmetic operation")
+	}
+	x2, ok := right[0].Value().(float64)
+	if !ok {
+		return 0, fmt.Errorf("number expected on right side of arithmetic operation")
+	}
+	return do(x1, x2)
+}
+
+func isMatch(seq Sequence, index int) (bool, error) {
+	if seq.Singleton() && seq[0].Atomic() {
+		n, ok := seq[0].Value().(float64)
+		if ok {
+			return int(n) == index, nil
+		}
+	}
+	return effectiveBooleanValue(seq)
+}
+
+func effectiveBooleanValue(seq Sequence) (bool, error) {
+	if seq.Empty() {
+		return false, nil
+	}
+
+	if seq[0].Atomic() {
+		if seq.Len() != 1 {
+			return false, fmt.Errorf("ebv is undefined for a sequence of multiple atomic values")
+		}
+
+		switch x := seq[0].Value().(type) {
+		case string:
+			return x != "", nil
+		case float64:
+			return x != 0 && !math.IsNaN(x), nil
+		case bool:
+			return x, nil
+		default:
+			return false, fmt.Errorf("unsupported atomic type %T", x)
+		}
+	}
+
+	for i := range seq {
+		if seq[i].Atomic() {
+			return false, fmt.Errorf("ebv is undefined for a mixed sequence")
+		}
+	}
+	return true, nil
 }
 
 func currentNode(item Item) (xml.Node, error) {
@@ -299,6 +667,8 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 	case *xml.Element:
 		return n.Name, true
 	case *xml.PI:
+		return n.Name, true
+	case *xml.Attribute:
 		return n.Name, true
 	default:
 		return xml.Name{}, false

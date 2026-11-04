@@ -69,6 +69,14 @@ func (root) String() string {
 
 func (root) expr() {}
 
+type current struct{}
+
+func (current) String() string {
+	return "current"
+}
+
+func (current) expr() {}
+
 type Axis uint8
 
 const (

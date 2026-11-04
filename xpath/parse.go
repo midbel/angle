@@ -431,7 +431,7 @@ func (p *Parser) parseArgs() ([]Expr, error) {
 
 func (p *Parser) parseCurrent() (Expr, error) {
 	p.next()
-	return currentStep(), nil
+	return current{}, nil
 }
 
 func (p *Parser) parseParent() (Expr, error) {

@@ -1,6 +1,8 @@
 package xpath
 
 import (
+	"fmt"
+
 	"github.com/midbel/angle/xml"
 )
 
@@ -137,4 +139,15 @@ func (a atomicItem) True() bool {
 
 func (atomicItem) Atomic() bool {
 	return true
+}
+
+func atomize(node xml.Node) (string, error) {
+	switch n := node.(type) {
+	case *xml.Element:
+		return n.Content(), nil
+	case xml.Attribute:
+		return n.Value, nil
+	default:
+		return "", fmt.Errorf("node can not be atomized")
+	}
 }

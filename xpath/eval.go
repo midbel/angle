@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -13,6 +14,7 @@ var (
 	ErrComparable = errors.New("values are not comparable")
 	ErrEval       = errors.New("expression can not be evaluate")
 	ErrAtomic     = errors.New("atomic value")
+	ErrConvert    = errors.New("value can not be converted")
 )
 
 func compareError(left, right any) error {
@@ -353,20 +355,20 @@ func isEq(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return nearlyEqual(e, x), nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e == x, nil
 		case bool:
-			x, ok := right.Value().(bool)
-			if !ok {
+			x, err := toBool(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e == x, nil
@@ -380,20 +382,20 @@ func isNe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return !nearlyEqual(e, x), nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e != x, nil
 		case bool:
-			x, ok := right.Value().(bool)
-			if !ok {
+			x, err := toBool(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e != x, nil
@@ -407,14 +409,14 @@ func isGt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e > x, nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e > x, nil
@@ -428,14 +430,14 @@ func isGe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e > x || nearlyEqual(e, x), nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e >= x, nil
@@ -449,14 +451,14 @@ func isLt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e < x, nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e < x, nil
@@ -470,14 +472,14 @@ func isLe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
 		switch e := left.Value().(type) {
 		case float64:
-			x, ok := right.Value().(float64)
-			if !ok {
+			x, err := toFloat(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e < x || nearlyEqual(e, x), nil
 		case string:
-			x, ok := right.Value().(string)
-			if !ok {
+			x, err := toString(right.Value())
+			if err != nil {
 				return false, compareError(e, right.Value())
 			}
 			return e <= x, nil
@@ -668,9 +670,74 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 		return n.Name, true
 	case *xml.PI:
 		return n.Name, true
-	case *xml.Attribute:
+	case xml.Attribute:
 		return n.Name, true
 	default:
 		return xml.Name{}, false
 	}
+}
+
+func convertTo(left, right Item) (any, any, error) {
+	if !left.Atomic() {
+		return convertTo(right, left)
+	}
+	switch e := left.Value().(type) {
+	case float64:
+		x, err := toFloat(right.Value())
+		return e, x, err
+	case string:
+		x, err := toString(right.Value())
+		return e, x, err
+	case bool:
+		x, err := toBool(right.Value())
+		return e, x, err
+	default:
+		return nil, nil, ErrConvert
+	}
+}
+
+func toFloat(value any) (float64, error) {
+	switch v := value.(type) {
+	case float64:
+		return v, nil
+	case string:
+		x, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			err = ErrConvert
+		}
+		return x, err
+	case bool:
+		if v {
+			return 1, nil
+		}
+		return 0, nil
+	case xml.Node:
+		s, err := atomize(v)
+		if err != nil {
+			return 0, err
+		}
+		return toFloat(s)
+	default:
+		return 0, ErrConvert
+	}
+}
+
+func toString(value any) (string, error) {
+	switch v := value.(type) {
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case string:
+		return v, nil
+	case bool:
+		return strconv.FormatBool(v), nil
+	case xml.Node:
+		return atomize(v)
+	default:
+		return "", ErrConvert
+	}
+}
+
+func toBool(value any) (bool, error) {
+	s := Singleton(value)
+	return effectiveBooleanValue(s)
 }

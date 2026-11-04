@@ -353,138 +353,162 @@ func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
 
 func isEq(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
+			x, err := toFloat(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return nearlyEqual(e, x), nil
 		case string:
-			x, err := toString(right.Value())
+			x, err := toString(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e == x, nil
 		case bool:
-			x, err := toBool(right.Value())
+			x, err := toBool(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e == x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }
 
 func isNe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
+			x, err := toFloat(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return !nearlyEqual(e, x), nil
 		case string:
-			x, err := toString(right.Value())
+			x, err := toString(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e != x, nil
 		case bool:
-			x, err := toBool(right.Value())
+			x, err := toBool(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e != x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }
 
 func isGt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
+			x, err := toFloat(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e > x, nil
 		case string:
-			x, err := toString(right.Value())
+			x, err := toString(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e > x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }
 
 func isGe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
 			x, err := toFloat(right.Value())
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e > x || nearlyEqual(e, x), nil
 		case string:
 			x, err := toString(right.Value())
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e >= x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }
 
 func isLt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
 			x, err := toFloat(right.Value())
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e < x, nil
 		case string:
 			x, err := toString(right.Value())
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e < x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }
 
 func isLe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right Item) (bool, error) {
-		switch e := left.Value().(type) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return false, err
+		}
+		switch e := e.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
+			x, err := toFloat(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e < x || nearlyEqual(e, x), nil
 		case string:
-			x, err := toString(right.Value())
+			x, err := toString(r)
 			if err != nil {
-				return false, compareError(e, right.Value())
+				return false, compareError(e, r)
 			}
 			return e <= x, nil
 		default:
-			return false, compareError(left.Value(), right.Value())
+			return false, compareError(e, r)
 		}
 	})
 }

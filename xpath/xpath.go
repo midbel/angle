@@ -104,7 +104,7 @@ func (i nodeItem) Node() xml.Node {
 }
 
 func (i nodeItem) Value() any {
-	return i.Node
+	return i.node
 }
 
 func (i nodeItem) True() bool {
@@ -146,7 +146,7 @@ func atomize(node xml.Node) (string, error) {
 	case *xml.Element:
 		return n.Content(), nil
 	case xml.Attribute:
-		return n.Value, nil
+		return n.Content(), nil
 	default:
 		return "", fmt.Errorf("node can not be atomized")
 	}

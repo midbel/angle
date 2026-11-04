@@ -72,6 +72,24 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 		return nil, fmt.Errorf("unsupported axis")
 	case SelfAxis:
 		return eval(expr.Expr, curr.Sub(curr.Item, 1, 1), ctx)
+	case AttributeAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			seq Sequence
+			attrs = traverseAttributes(node)
+		)
+		for i, a := range attrs {
+			it := newNodeItem(a)
+			res, err := eval(expr.Expr, curr.Sub(it, len(attrs), i+1), ctx)
+			if err != nil {
+				return nil, err
+			}
+			seq = append(seq, res...)
+		}
+		return seq, nil
 	case ParentAxis:
 		n, err := currentNode(curr.Item)
 		if err != nil {
@@ -180,6 +198,14 @@ func currentNode(item Item) (xml.Node, error) {
 		return nil, fmt.Errorf("node item expected")
 	}
 	return item.Node(), nil
+}
+
+func traverseAttributes(node xml.Node) []xml.Attribute {
+	el, ok := node.(*xml.Element)
+	if !ok {
+		return nil
+	}
+	return el.Attributes
 }
 
 func traverseRoot(node xml.Node) xml.Node {

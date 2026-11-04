@@ -679,7 +679,11 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 
 func convertTo(left, right Item) (any, any, error) {
 	if !left.Atomic() {
-		return convertTo(right, left)
+		e, r, err := convertTo(right, left)
+		if err == nil {
+			e, r = r, e
+		}
+		return e, r, err
 	}
 	switch e := left.Value().(type) {
 	case float64:

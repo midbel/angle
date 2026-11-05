@@ -197,6 +197,7 @@ func (p *Parser) parseCall(left Expr) (Expr, error) {
 	if !p.is(EndGrp) {
 		return nil, fmt.Errorf("call: %s", p.unexpectedToken())
 	}
+	p.next()
 	expr := call{
 		Name: n,
 		Args: args,
@@ -379,7 +380,7 @@ func (p *Parser) parseName() (Expr, error) {
 	p.next()
 	if p.is(BegGrp) {
 		if st.axis != 0 {
-			return nil, fmt.Errorf("function call can not used axis")
+			return nil, fmt.Errorf("function call can not used an axis")
 		}
 		return p.parseCall(nt)
 	}

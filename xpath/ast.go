@@ -12,14 +12,14 @@ type Expr interface {
 
 type path []Expr
 
-func (p path) String() string {
+func (ps path) String() string {
 	var str strings.Builder
 	str.WriteString("path(")
-	for i := range p {
+	for i := range ps {
 		if i > 0 {
 			str.WriteString(", ")
 		}
-		str.WriteString(p[i].String())
+		str.WriteString(ps[i].String())
 	}
 	str.WriteString(")")
 	return str.String()
@@ -29,14 +29,14 @@ func (path) expr() {}
 
 type union []Expr
 
-func (u union) String() string {
+func (us union) String() string {
 	var str strings.Builder
 	str.WriteString("union(")
-	for i := range u {
+	for i := range us {
 		if i > 0 {
 			str.WriteString(", ")
 		}
-		str.WriteString(u[i].String())
+		str.WriteString(us[i].String())
 	}
 	str.WriteString(")")
 	return str.String()
@@ -44,16 +44,50 @@ func (u union) String() string {
 
 func (union) expr() {}
 
-type list []Expr
+type intersect []Expr
 
-func (i list) String() string {
+func (is intersect) String() string {
 	var str strings.Builder
-	str.WriteString("list(")
-	for j := range i {
+	str.WriteString("intersect(")
+	for j := range is {
 		if j > 0 {
 			str.WriteString(", ")
 		}
-		str.WriteString(i[j].String())
+		str.WriteString(is[j].String())
+	}
+	str.WriteString(")")
+	return str.String()
+}
+
+func (intersect) expr() {}
+
+type except []Expr
+
+func (es except) String() string {
+	var str strings.Builder
+	str.WriteString("except(")
+	for i := range es {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(es[i].String())
+	}
+	str.WriteString(")")
+	return str.String()
+}
+
+func (except) expr() {}
+
+type list []Expr
+
+func (is list) String() string {
+	var str strings.Builder
+	str.WriteString("list(")
+	for j := range is {
+		if j > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(is[j].String())
 	}
 	str.WriteString(")")
 	return str.String()

@@ -34,6 +34,14 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 	switch e := expr.(type) {
 	case path:
 		return evalPath(e, curr, ctx)
+	case union:
+		return evalUnion(e, curr, ctx)
+	case intersect:
+		return evalIntersect(e, curr, ctx)
+	case except:
+		return evalExcept(e, curr, ctx)
+	case list:
+		return evalList(e, curr, ctx)
 	case root:
 		return evalRoot(e, curr, ctx)
 	case current:
@@ -54,9 +62,39 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 		return evalNumber(e, curr, ctx)
 	case literal:
 		return evalLiteral(e, curr, ctx)
+	case call:
+		return evalCall(e, curr, ctx)
 	default:
 		return nil, ErrEval
 	}
+	return nil, nil
+}
+
+func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
+	var seq Sequence
+	for i := range expr {
+		res, err := eval(expr[i], curr, ctx)
+		if err != nil {
+			return nil, err
+		}
+		seq = append(seq, res...)
+	}
+	return seq, nil
+}
+
+func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
+	return nil, nil
+}
+
+func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
 	return nil, nil
 }
 

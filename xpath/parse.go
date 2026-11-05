@@ -318,9 +318,11 @@ func (p *Parser) parseStep(left Expr) (Expr, error) {
 func (p *Parser) parseList(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
+	fmt.Println("startList", p.curr, p.peek)
 	for p.is(Comma) {
 		p.next()
-		e, err := p.startExpr(powUnion)
+		fmt.Println("parseList", p.curr, p.peek)
+		e, err := p.startExpr(powLowest)
 		if err != nil {
 			return nil, err
 		}
@@ -334,7 +336,7 @@ func (p *Parser) parseUnion(left Expr) (Expr, error) {
 	expr = append(expr, left)
 	for p.is(Pipe) {
 		p.next()
-		e, err := p.startExpr(powUnion)
+		e, err := p.startExpr(powLowest)
 		if err != nil {
 			return nil, err
 		}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -12,7 +11,7 @@ import (
 
 var (
 	ErrComparable = errors.New("values are not comparable")
-	ErrEval       = errors.New("expression can not be evaluate")
+	ErrEval       = errors.New("expression can not be evaluated")
 	ErrAtomic     = errors.New("atomic value")
 	ErrConvert    = errors.New("value can not be converted")
 )
@@ -256,8 +255,10 @@ func evalBinary(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 		return evalConcat(expr, curr, ctx)
 	case Eq, Ne, Lt, Le, Gt, Ge:
 		return evalComparison(expr, curr, ctx)
-	case And, Or:
-		return evalLogical(expr, curr, ctx)
+	case And:
+		return evalAnd(expr, curr, ctx)
+	case Or:
+		return evalOr(expr, curr, ctx)
 	default:
 		return nil, fmt.Errorf("unsupported binary operator")
 	}
@@ -297,11 +298,73 @@ func evalArithmetic(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalConcat(expr binary, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	seq1, err := eval(expr.left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	seq2, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if seq1.Len() > 1 || seq2.Len() > 1 {
+		return nil, fmt.Errorf("sequences too long")
+	}
+	var left string
+	if !seq1.Empty() {
+		left, err = stringify(seq1[0].Value())
+		if err != nil {
+			return nil, err
+		}
+	}
+	var right string
+	if !seq2.Empty() {
+		right, err = stringify(seq2[0].Value())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return Singleton(left + right), nil
 }
 
-func evalLogical(expr binary, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+func evalAnd(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	left, err := eval(expr.left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	ok, err := effectiveBooleanValue(left)
+	if err != nil || !ok {
+		return Singleton(false), err
+	}
+	right, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	ok, err = effectiveBooleanValue(right)
+	if err != nil || !ok {
+		return Singleton(false), err
+	}
+	return Singleton(true), nil
+}
+
+func evalOr(expr binary, curr Focus, ctx *Context) (Sequence, error) {
+	left, err := eval(expr.left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	ok, err := effectiveBooleanValue(left)
+	if err != nil || ok {
+		return Singleton(true), err
+	}
+	right, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	ok, err = effectiveBooleanValue(right)
+	if err != nil || ok {
+		return Singleton(true), err
+	}
+	return Singleton(false), nil
 }
 
 func evalComparison(expr binary, curr Focus, ctx *Context) (Sequence, error) {
@@ -340,6 +403,27 @@ func evalComparison(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalUnary(expr unary, curr Focus, ctx *Context) (Sequence, error) {
+	seq, err := eval(expr.right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch expr.op {
+	case Sub:
+		if seq.Len() != 1 {
+			return nil, fmt.Errorf("singleton sequence expected")
+		}
+		val, err := atomize(seq[0].Value())
+		if err != nil {
+			return nil, err
+		}
+		f, err := castToFloat(val)
+		if err != nil {
+			return nil, err
+		}
+		return Singleton(-f), nil
+	default:
+		return nil, fmt.Errorf("unsupported unary operator")
+	}
 	return nil, nil
 }
 
@@ -352,181 +436,112 @@ func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func isEq(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
-		case float64:
-			x, err := toFloat(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return nearlyEqual(e, x), nil
-		case string:
-			x, err := toString(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return e == x, nil
-		case bool:
-			x, err := toBool(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return e == x, nil
-		default:
-			return false, compareError(e, r)
-		}
+	return compare(left, right, func(left, right any) (bool, error) {
+		return left == right, nil
 	})
 }
 
 func isNe(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
-		case float64:
-			x, err := toFloat(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return !nearlyEqual(e, x), nil
-		case string:
-			x, err := toString(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return e != x, nil
-		case bool:
-			x, err := toBool(r)
-			if err != nil {
-				return false, compareError(e, r)
-			}
-			return e != x, nil
-		default:
-			return false, compareError(e, r)
-		}
+	return compare(left, right, func(left, right any) (bool, error) {
+		return left != right, nil
 	})
 }
 
 func isGt(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
+	return compare(left, right, func(left, right any) (bool, error) {
+		switch e := left.(type) {
 		case float64:
-			x, err := toFloat(r)
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(float64)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e > x, nil
+			return e > r, nil
 		case string:
-			x, err := toString(r)
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(string)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e > x, nil
+			return e > r, nil
 		default:
-			return false, compareError(e, r)
+			return false, compareError(left, right)
 		}
 	})
 }
 
 func isGe(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
+	return compare(left, right, func(left, right any) (bool, error) {
+		switch e := left.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(float64)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e > x || nearlyEqual(e, x), nil
+			return e >= r, nil
 		case string:
-			x, err := toString(right.Value())
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(string)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e >= x, nil
+			return e >= r, nil
 		default:
-			return false, compareError(e, r)
+			return false, compareError(left, right)
 		}
 	})
 }
 
 func isLt(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
+	return compare(left, right, func(left, right any) (bool, error) {
+		switch e := left.(type) {
 		case float64:
-			x, err := toFloat(right.Value())
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(float64)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e < x, nil
+			return e < r, nil
 		case string:
-			x, err := toString(right.Value())
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(string)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e < x, nil
+			return e < r, nil
 		default:
-			return false, compareError(e, r)
+			return false, compareError(left, right)
 		}
 	})
 }
 
 func isLe(left, right Sequence) (bool, error) {
-	return compare(left, right, func(left, right Item) (bool, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return false, err
-		}
-		switch e := e.(type) {
+	return compare(left, right, func(left, right any) (bool, error) {
+		switch e := left.(type) {
 		case float64:
-			x, err := toFloat(r)
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(float64)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e < x || nearlyEqual(e, x), nil
+			return e <= r, nil
 		case string:
-			x, err := toString(r)
-			if err != nil {
-				return false, compareError(e, r)
+			r, ok := right.(string)
+			if !ok {
+				return false, compareError(left, right)
 			}
-			return e <= x, nil
+			return e <= r, nil
 		default:
-			return false, compareError(e, r)
+			return false, compareError(left, right)
 		}
 	})
 }
 
-func nearlyEqual(left, right float64) bool {
-	if left == right {
-		return true
-	}
-	return math.Abs(left-right) < 0.000001
-}
-
-func compare(left, right Sequence, cmp func(left, right Item) (bool, error)) (bool, error) {
+func compare(left, right Sequence, cmp func(left, right any) (bool, error)) (bool, error) {
 	if left.Empty() || right.Empty() {
 		return false, nil
 	}
 	for i := range left {
 		for j := range right {
-			ok, err := cmp(left[i], right[j])
+			e, r, err := convertTo(left[i], right[j])
+			if err != nil {
+				return false, err
+			}
+			ok, err := cmp(e, r)
 			if ok || err != nil {
 				return ok, err
 			}
@@ -699,73 +714,4 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 	default:
 		return xml.Name{}, false
 	}
-}
-
-func convertTo(left, right Item) (any, any, error) {
-	if !left.Atomic() {
-		e, r, err := convertTo(right, left)
-		if err == nil {
-			e, r = r, e
-		}
-		return e, r, err
-	}
-	switch e := left.Value().(type) {
-	case float64:
-		x, err := toFloat(right.Value())
-		return e, x, err
-	case string:
-		x, err := toString(right.Value())
-		return e, x, err
-	case bool:
-		x, err := toBool(right.Value())
-		return e, x, err
-	default:
-		return nil, nil, ErrConvert
-	}
-}
-
-func toFloat(value any) (float64, error) {
-	switch v := value.(type) {
-	case float64:
-		return v, nil
-	case string:
-		x, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			err = ErrConvert
-		}
-		return x, err
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case xml.Node:
-		s, err := atomize(v)
-		if err != nil {
-			return 0, err
-		}
-		return toFloat(s)
-	default:
-		return 0, ErrConvert
-	}
-}
-
-func toString(value any) (string, error) {
-	switch v := value.(type) {
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64), nil
-	case string:
-		return v, nil
-	case bool:
-		return strconv.FormatBool(v), nil
-	case xml.Node:
-		return atomize(v)
-	default:
-		return "", ErrConvert
-	}
-}
-
-func toBool(value any) (bool, error) {
-	s := Singleton(value)
-	return effectiveBooleanValue(s)
 }

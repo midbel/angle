@@ -79,17 +79,17 @@ func (p *Parser) parseExpr() (Expr, error) {
 }
 
 func (p *Parser) startExpr(pow int) (Expr, error) {
-	fn, ok := p.prefix[p.curr.Type]
-	if !ok {
-		return nil, fmt.Errorf("unsupported prefix operator")
+	fn, err := p.getPrefixFn()
+	if err != nil {
+		return nil, err
 	}
 	left, err := fn()
 	if err != nil {
 		return nil, err
 	}
 	for {
-		fn, ok := p.postfix[p.curr.Type]
-		if !ok {
+		fn, err := p.getPostfixFn()
+		if err != nil {
 			break
 		}
 		left, err = fn(left)
@@ -98,9 +98,9 @@ func (p *Parser) startExpr(pow int) (Expr, error) {
 		}
 	}
 	for !p.done() && pow < p.powerOf() {
-		fn, ok := p.infix[p.curr.Type]
-		if !ok {
-			return nil, fmt.Errorf("unsupported prefix operator")
+		fn, err := p.getInfixFn()
+		if err != nil {
+			return nil, err
 		}
 		left, err = fn(left)
 		if err != nil {
@@ -108,6 +108,47 @@ func (p *Parser) startExpr(pow int) (Expr, error) {
 		}
 	}
 	return left, nil
+}
+
+func (p *Parser) getPrefixFn() (func() (Expr, error), error) {
+	fn, ok := p.prefix[p.curr.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported prefix operator")
+	}
+	return fn, nil
+}
+
+func (p *Parser) getPostfixFn() (func(Expr) (Expr, error), error) {
+	fn, ok := p.postfix[p.curr.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported prefix operator")
+	}
+	return fn, nil
+}
+
+func (p *Parser) getInfixFn() (func(Expr) (Expr, error), error) {
+	if p.is(Name) {
+		var kind rune
+		switch p.currentLiteral() {
+		case kwMod:
+			kind = Mod
+		case kwDiv:
+			kind = Div
+		case kwAnd:
+			kind = And
+		case kwOr:
+			kind = Or
+		default:
+			return nil, fmt.Errorf("unsupported infix operator")
+		}
+		p.curr.Type = kind
+		return p.parseBinary, nil
+	}
+	fn, ok := p.infix[p.curr.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported infix operator")
+	}
+	return fn, nil
 }
 
 func (p *Parser) parseNodeTest() (Expr, bool, error) {
@@ -467,7 +508,21 @@ func (p *Parser) is(kind rune) bool {
 }
 
 func (p *Parser) powerOf() int {
-	pow, ok := bindings[p.curr.Type]
+	kind := p.curr.Type
+	if p.is(Name) {
+		switch p.currentLiteral() {
+		case kwMod:
+			kind = Mod
+		case kwDiv:
+			kind = Div
+		case kwAnd:
+			kind = And
+		case kwOr:
+			kind = Or
+		default:
+		}
+	}
+	pow, ok := bindings[kind]
 	if !ok {
 		pow = powLowest
 	}

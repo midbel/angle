@@ -2,6 +2,13 @@ package xpath
 
 import "fmt"
 
+const (
+	kwAnd = "and"
+	kwOr  = "or"
+	kwMod = "mod"
+	kwDiv = "div"
+)
+
 type Token struct {
 	Literal string
 	Type    rune

@@ -185,8 +185,6 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		tok.Type = Add
 	case '-':
 		tok.Type = Sub
-	case '%':
-		tok.Type = Mod
 	case '*':
 		tok.Type = Mul
 	case ':':
@@ -306,7 +304,7 @@ func isAttribute(c rune) bool {
 func isDelim(c rune) bool {
 	return c == '/' || c == ',' || c == '|' ||
 		c == '(' || c == ')' || c == '[' || c == ']' ||
-		c == '.' || c == '*' || c == ':' || c == '%' ||
+		c == '.' || c == '*' || c == ':' ||
 		c == '=' || c == '!' || c == '+' || c == '-' ||
 		c == '<' || c == '>'
 }

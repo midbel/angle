@@ -30,7 +30,7 @@ func (i *Line) Element() (xml.Node, error) {
 	if err := i.Validate(); err != nil {
 		return nil, err
 	}
-	var attrs []xml.Attribute
+	var attrs []*xml.Attribute
 	attrs = append(attrs, i.startAttributes()...)
 	attrs = append(attrs, i.endAttributes()...)
 	attrs = append(attrs, i.stroke.attributes()...)
@@ -55,15 +55,15 @@ func (i *Line) Validate() error {
 	return nil
 }
 
-func (i *Line) startAttributes() []xml.Attribute {
-	return []xml.Attribute{
+func (i *Line) startAttributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("x1"), f2s(i.start.x)),
 		xml.NewAttribute(xml.NewName("y1"), f2s(i.start.y)),
 	}
 }
 
-func (i *Line) endAttributes() []xml.Attribute {
-	return []xml.Attribute{
+func (i *Line) endAttributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("x2"), f2s(i.end.x)),
 		xml.NewAttribute(xml.NewName("y2"), f2s(i.end.y)),
 	}
@@ -110,7 +110,7 @@ func (p Polyline) Element() (xml.Node, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("points"), p.getPoints()),
 		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
 	}
@@ -154,7 +154,7 @@ func (p *Path) Element() (xml.Node, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("d"), p.buildPath()),
 		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
 	}

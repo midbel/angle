@@ -39,8 +39,8 @@ func isFinite(f float64) error {
 	return nil
 }
 
-func cleanAttrs(attrs []xml.Attribute) []xml.Attribute {
-	return slices.DeleteFunc(attrs, func(a xml.Attribute) bool {
-		return a.Value == ""
+func cleanAttrs(attrs []*xml.Attribute) []*xml.Attribute {
+	return slices.DeleteFunc(attrs, func(a *xml.Attribute) bool {
+		return a == nil || a.Value == ""
 	})
 }

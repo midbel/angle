@@ -83,15 +83,39 @@ func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	var seq Sequence
+	for i := range expr {
+		res, err := eval(expr[i], curr, ctx)
+		if err != nil {
+			return nil, err
+		}
+		seq = append(seq, res...)
+	}
+	return seq, nil
 }
 
 func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	var seq Sequence
+	for i := range expr {
+		res, err := eval(expr[i], curr, ctx)
+		if err != nil {
+			return nil, err
+		}
+		seq = append(seq, res...)
+	}
+	return seq, nil
 }
 
 func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	var seq Sequence
+	for i := range expr {
+		res, err := eval(expr[i], curr, ctx)
+		if err != nil {
+			return nil, err
+		}
+		seq = append(seq, res...)
+	}
+	return seq, nil
 }
 
 func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
@@ -689,7 +713,7 @@ func currentNode(item Item) (xml.Node, error) {
 	return item.Node(), nil
 }
 
-func traverseAttributes(node xml.Node) []xml.Attribute {
+func traverseAttributes(node xml.Node) []*xml.Attribute {
 	el, ok := node.(*xml.Element)
 	if !ok {
 		return nil

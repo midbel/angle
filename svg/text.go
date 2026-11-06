@@ -31,7 +31,7 @@ func (t *Text) Element() (xml.Node, error) {
 	if err := t.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(t.fill)),
 		xml.NewAttribute(xml.NewName("text-anchor"), t.anchor),
 		xml.NewAttribute(xml.NewName("dominant-baseline"), t.baseline),

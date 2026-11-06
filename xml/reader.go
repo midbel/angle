@@ -447,24 +447,24 @@ func (r *Reader) decodeName() (Name, error) {
 	return ParseName(r.currentLiteral())
 }
 
-func (r *Reader) decodeAttr() (Attribute, error) {
+func (r *Reader) decodeAttr() (*Attribute, error) {
 	name, err := r.decodeName()
 	if err != nil {
-		return Attribute{}, err
+		return nil, err
 	}
 	if !r.is(TokEqual) {
-		return Attribute{}, r.syntaxError()
+		return nil, r.syntaxError()
 	}
 	r.next()
 	if !r.is(TokString) {
-		return Attribute{}, r.syntaxError()
+		return nil, r.syntaxError()
 	}
 	attr := Attribute{
 		Name:  name,
 		Value: r.currentLiteral(),
 	}
 	r.next()
-	return attr, nil
+	return &attr, nil
 }
 
 func (r *Reader) decodeReference() (string, error) {

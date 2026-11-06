@@ -38,8 +38,8 @@ func (a *Attributes) Style(name, value string) *Attributes {
 	return a
 }
 
-func (a *Attributes) attributes() []xml.Attribute {
-	attrs := []xml.Attribute{
+func (a *Attributes) attributes() []*xml.Attribute {
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("id"), a.id),
 		xml.NewAttribute(xml.NewName("class"), strings.Join(a.class, " ")),
 		xml.NewAttribute(xml.NewName("style"), a.getStyles()),

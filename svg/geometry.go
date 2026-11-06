@@ -18,8 +18,8 @@ func NewRadius(x, y float64) Radius {
 	}
 }
 
-func (r *Radius) attributes() []xml.Attribute {
-	return []xml.Attribute{
+func (r *Radius) attributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("rx"), f2s(r.x)),
 		xml.NewAttribute(xml.NewName("ry"), f2s(r.y)),
 	}
@@ -70,7 +70,7 @@ func (v ViewBox) Validate() error {
 	return nil
 }
 
-func (v ViewBox) attributes() []xml.Attribute {
+func (v ViewBox) attributes() []*xml.Attribute {
 	if v.origin.Zero() && v.size.Zero() {
 		return nil
 	}
@@ -83,7 +83,7 @@ func (v ViewBox) attributes() []xml.Attribute {
 	str.WriteRune(' ')
 	str.WriteString(f2s(v.size.height))
 	a := xml.NewAttribute(xml.NewName("viewBox"), str.String())
-	return []xml.Attribute{a}
+	return []*xml.Attribute{a}
 }
 
 type Point struct {
@@ -117,15 +117,15 @@ func (p *Point) Zero() bool {
 	return p.x == 0 && p.y == 0
 }
 
-func (p *Point) attributes() []xml.Attribute {
-	return []xml.Attribute{
+func (p *Point) attributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("x"), f2s(p.x)),
 		xml.NewAttribute(xml.NewName("y"), f2s(p.y)),
 	}
 }
 
-func (p *Point) centerAttributes() []xml.Attribute {
-	return []xml.Attribute{
+func (p *Point) centerAttributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("cx"), f2s(p.x)),
 		xml.NewAttribute(xml.NewName("cy"), f2s(p.y)),
 	}
@@ -165,8 +165,8 @@ func (s *Size) Validate() error {
 	return nil
 }
 
-func (s *Size) attributes() []xml.Attribute {
-	return []xml.Attribute{
+func (s *Size) attributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("width"), f2s(s.width)),
 		xml.NewAttribute(xml.NewName("height"), f2s(s.height)),
 	}

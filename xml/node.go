@@ -142,7 +142,7 @@ func (*Document) Type() NodeType {
 type Element struct {
 	Name
 	NS         []Namespace
-	Attributes []Attribute
+	Attributes []*Attribute
 	Children   []Node
 
 	parent Node
@@ -230,8 +230,8 @@ type Attribute struct {
 	Value string
 }
 
-func NewAttribute(name Name, value string) Attribute {
-	return Attribute{
+func NewAttribute(name Name, value string) *Attribute {
+	return &Attribute{
 		Name:  name,
 		Value: value,
 	}

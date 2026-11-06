@@ -534,7 +534,7 @@ func (w *Writer) Indent(level int) error {
 	return w.err()
 }
 
-func (w *Writer) Empty(name Name, attrs []Attribute, ns []Namespace) error {
+func (w *Writer) Empty(name Name, attrs []*Attribute, ns []Namespace) error {
 	if err := w.err(); err != nil {
 		return err
 	}
@@ -559,7 +559,7 @@ func (w *Writer) Empty(name Name, attrs []Attribute, ns []Namespace) error {
 	return w.err()
 }
 
-func (w *Writer) StartElement(name Name, attrs []Attribute, ns []Namespace) error {
+func (w *Writer) StartElement(name Name, attrs []*Attribute, ns []Namespace) error {
 	if err := w.err(); err != nil {
 		return err
 	}
@@ -672,7 +672,7 @@ func (w *Writer) writeNamespace(ns Namespace) error {
 	return w.err()
 }
 
-func (w *Writer) writeAttribute(attr Attribute) error {
+func (w *Writer) writeAttribute(attr *Attribute) error {
 	if err := w.err(); err != nil {
 		return err
 	}

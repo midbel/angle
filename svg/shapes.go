@@ -31,7 +31,7 @@ func (r *Rect) Element() (xml.Node, error) {
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(r.fill)),
 	}
 	attrs = append(attrs, r.origin.attributes()...)
@@ -127,7 +127,7 @@ func (p Polygon) Element() (xml.Node, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("points"), p.getPoints()),
 		xml.NewAttribute(xml.NewName("fill"), string(p.fill)),
 	}
@@ -192,7 +192,7 @@ func (c *Circle) Element() (xml.Node, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(c.fill)),
 		xml.NewAttribute(xml.NewName("r"), f2s(c.radius)),
 	}
@@ -263,7 +263,7 @@ func (e *Ellipse) Element() (xml.Node, error) {
 	if err := e.Validate(); err != nil {
 		return nil, err
 	}
-	attrs := []xml.Attribute{
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("fill"), string(e.fill)),
 	}
 	attrs = append(attrs, e.origin.centerAttributes()...)

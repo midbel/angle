@@ -44,7 +44,7 @@ func (d *Document) Element() (xml.Node, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
-	var attrs []xml.Attribute
+	var attrs []*xml.Attribute
 
 	attrs = append(attrs, d.box.attributes()...)
 	attrs = append(attrs, d.origin.attributes()...)

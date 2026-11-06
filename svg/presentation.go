@@ -68,8 +68,8 @@ func (s Stroke) LineJoin(val string) Stroke {
 	return s
 }
 
-func (s Stroke) attributes() []xml.Attribute {
-	return []xml.Attribute{
+func (s Stroke) attributes() []*xml.Attribute {
+	return []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("stroke-width"), f2s(s.width)),
 		xml.NewAttribute(xml.NewName("stroke-opacity"), f2s(s.opacity)),
 		xml.NewAttribute(xml.NewName("stroke-dasharray"), af2s(s.array)),
@@ -157,8 +157,8 @@ func (f Font) StrikeThrough() Font {
 	return f
 }
 
-func (f Font) attributes() []xml.Attribute {
-	attrs := []xml.Attribute{
+func (f Font) attributes() []*xml.Attribute {
+	attrs := []*xml.Attribute{
 		xml.NewAttribute(xml.NewName("font-size"), f2s(f.size)),
 		xml.NewAttribute(xml.NewName("font-weight"), f.weight),
 		xml.NewAttribute(xml.NewName("font-family"), f.family),

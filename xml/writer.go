@@ -10,7 +10,7 @@ import (
 
 func WriteNode(w io.Writer, node Node, depth int) error {
 	e := NewEncoder(w)
-	if err := e.encodeNode(node); err != nil {
+	if err := e.encode(node); err != nil {
 		return err
 	}
 	return e.flush()
@@ -35,12 +35,17 @@ func (e *Encoder) SetCompact(compact bool) {
 }
 
 func (e *Encoder) Encode(doc *Document) error {
-	for _, n := range doc.Children {
-		if err := e.encodeNode(n); err != nil {
-			return err
-		}
+	if err := e.encode(doc); err != nil {
+		return err
 	}
 	return e.flush()
+}
+
+func (e *Encoder) encode(n Node) error {
+	if doc, ok := n.(*Document); ok {
+		return e.encodeDocument(doc)
+	}
+	return e.encodeNode(n)
 }
 
 func (e *Encoder) encodeNode(n Node) error {
@@ -58,6 +63,15 @@ func (e *Encoder) encodeNode(n Node) error {
 		err = ErrElement
 	}
 	return err
+}
+
+func (e *Encoder) encodeDocument(doc *Document) error {
+	for _, n := range doc.Children {
+		if err := e.encodeNode(n); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Encoder) encodeElement(el *Element) error {

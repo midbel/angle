@@ -31,43 +31,59 @@ func Find(query string, doc xml.Node, ctx *Context) (Sequence, error) {
 }
 
 func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
+	var (
+		seq Sequence
+		err error
+	)
 	switch e := expr.(type) {
 	case path:
-		return evalPath(e, curr, ctx)
+		seq, err = evalPath(e, curr, ctx)
 	case union:
-		return evalUnion(e, curr, ctx)
+		seq, err = evalUnion(e, curr, ctx)
 	case intersect:
-		return evalIntersect(e, curr, ctx)
+		seq, err = evalIntersect(e, curr, ctx)
 	case except:
-		return evalExcept(e, curr, ctx)
+		seq, err = evalExcept(e, curr, ctx)
 	case list:
-		return evalList(e, curr, ctx)
+		seq, err = evalList(e, curr, ctx)
 	case root:
-		return evalRoot(e, curr, ctx)
+		seq, err = evalRoot(e, curr, ctx)
 	case current:
-		return evalCurrent(e, curr, ctx)
+		seq, err = evalCurrent(e, curr, ctx)
 	case step:
-		return evalStep(e, curr, ctx)
+		seq, err = evalStep(e, curr, ctx)
 	case nameTest:
-		return evalName(e, curr, ctx)
+		seq, err = evalName(e, curr, ctx)
 	case predicate:
-		return evalPredicate(e, curr, ctx)
+		seq, err = evalPredicate(e, curr, ctx)
 	case typeTest:
-		return evalType(e, curr, ctx)
+		seq, err = evalType(e, curr, ctx)
 	case binary:
-		return evalBinary(e, curr, ctx)
+		seq, err = evalBinary(e, curr, ctx)
 	case unary:
-		return evalUnary(e, curr, ctx)
+		seq, err = evalUnary(e, curr, ctx)
 	case number:
-		return evalNumber(e, curr, ctx)
+		seq, err = evalNumber(e, curr, ctx)
 	case literal:
-		return evalLiteral(e, curr, ctx)
+		seq, err = evalLiteral(e, curr, ctx)
 	case call:
-		return evalCall(e, curr, ctx)
+		seq, err = evalCall(e, curr, ctx)
 	default:
 		return nil, ErrEval
 	}
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+	return clearDuplicates(seq), nil
+}
+
+func clearDuplicates(seq Sequence) Sequence {
+	if seq.Len() <= 1 {
+		return seq
+	}
+	// seen := make(map[xml.Node]struct{})
+	// _ = seen
+	return seq
 }
 
 func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
@@ -83,7 +99,10 @@ func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
+	var (
+		seq  Sequence
+		seen = make(map[xml.Node]struct{})
+	)
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
@@ -95,11 +114,18 @@ func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
+	var (
+		seq Sequence
+		seen = make(map[xml.Node]struct{})
+	)
+	_ = seen
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
 			return nil, err
+		}
+		if i > 0 {
+
 		}
 		seq = append(seq, res...)
 	}
@@ -107,7 +133,10 @@ func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
+	var (
+		seq Sequence
+		seen = make(map[xml.Node]struct{})
+	)
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
@@ -771,7 +800,7 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 		return n.Name, true
 	case *xml.PI:
 		return n.Name, true
-	case xml.Attribute:
+	case *xml.Attribute:
 		return n.Name, true
 	default:
 		return xml.Name{}, false

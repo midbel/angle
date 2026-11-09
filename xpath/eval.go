@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -81,9 +82,21 @@ func clearDuplicates(seq Sequence) Sequence {
 	if seq.Len() <= 1 {
 		return seq
 	}
-	// seen := make(map[xml.Node]struct{})
-	// _ = seen
-	return seq
+	var (
+		tmp  Sequence
+		seen = make(map[xml.Node]struct{})
+	)
+	for i := range seq {
+		if !seq[i].Atomic() {
+			_, ok := seen[seq[i].Node()]
+			if ok {
+				continue
+			}
+			seen[seq[i].Node()] = struct{}{}
+		}
+		tmp = append(tmp, seq[i])
+	}
+	return tmp
 }
 
 func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
@@ -99,10 +112,7 @@ func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
-	var (
-		seq  Sequence
-		seen = make(map[xml.Node]struct{})
-	)
+	var seq Sequence
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
@@ -114,35 +124,39 @@ func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
-	var (
-		seq Sequence
-		seen = make(map[xml.Node]struct{})
-	)
-	_ = seen
+	var seq Sequence
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
 			return nil, err
 		}
 		if i > 0 {
-
+			seq, err = exceptNodes(seq, res)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			seq = append(seq, res...)
 		}
-		seq = append(seq, res...)
 	}
 	return seq, nil
 }
 
 func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
-	var (
-		seq Sequence
-		seen = make(map[xml.Node]struct{})
-	)
+	var seq Sequence
 	for i := range expr {
 		res, err := eval(expr[i], curr, ctx)
 		if err != nil {
 			return nil, err
 		}
-		seq = append(seq, res...)
+		if i > 0 {
+			seq, err = intersectNodes(res, seq)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			seq = append(seq, res...)
+		}
 	}
 	return seq, nil
 }
@@ -805,4 +819,37 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 	default:
 		return xml.Name{}, false
 	}
+}
+
+func exceptNodes(left, right Sequence) (Sequence, error) {
+	var tmp Sequence
+	for j := range left {
+		if left[j].Atomic() {
+			return nil, fmt.Errorf("%w not allowed", ErrAtomic)
+		}
+		ok := slices.ContainsFunc(right, func(it Item) bool {
+			return it.Node() == left[j].Node()
+		})
+		if ok {
+			tmp = append(tmp, left[j])
+		}
+	}
+	return left, nil
+}
+
+func intersectNodes(left, right Sequence) (Sequence, error) {
+	var tmp Sequence
+	for j := range left {
+		if left[j].Atomic() {
+			return nil, fmt.Errorf("%w not allowed", ErrAtomic)
+		}
+		ok := slices.ContainsFunc(right, func(it Item) bool {
+			return it.Node() == left[j].Node()
+		})
+		if !ok {
+			continue
+		}
+		tmp = append(tmp, left[j])
+	}
+	return tmp, nil
 }

@@ -6,6 +6,11 @@ import (
 	"github.com/midbel/angle/xml"
 )
 
+const (
+	nsPrefixFunc = "fn"
+	nsUriFunc    = "http://www.w3.org/2005/xpath-functions"
+)
+
 type Env[T any] map[string]T
 
 func (e Env[T]) Resolve(ident string) (T, error) {
@@ -26,6 +31,24 @@ func NewContext() *Context {
 	return &Context{
 		namespaces: make(Env[string]),
 		vars:       make(Env[string]),
+	}
+}
+
+type qname struct {
+	Uri  string
+	Name string
+}
+
+func createQName(name, prefix string) qname {
+	var uri string
+	switch prefix {
+	case nsPrefixFunc:
+		uri = nsUriFunc
+	default:
+	}
+	return qname{
+		Uri:  uri,
+		Name: name,
 	}
 }
 

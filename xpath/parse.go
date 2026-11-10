@@ -138,8 +138,6 @@ func (p *Parser) getInfixFn() (func(Expr) (Expr, error), error) {
 			kind = And
 		case kwOr:
 			kind = Or
-		case kwUnion:
-			kind = Pipe
 		case kwIntersect:
 			return p.parseIntersect, nil
 		case kwExcept:
@@ -341,7 +339,7 @@ func (p *Parser) parseList(left Expr) (Expr, error) {
 	return list(expr), nil
 }
 
-func (p *Parser) parseExpect(left Expr) (Expr, error) {
+func (p *Parser) parseExcept(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
 	for p.is(Pipe) {

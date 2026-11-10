@@ -1,6 +1,7 @@
 package xpath
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/midbel/angle/xml"
@@ -14,7 +15,10 @@ const (
 type Env[T any] map[string]T
 
 func (e Env[T]) Resolve(ident string) (T, error) {
-	var t T
+	t, ok := e[ident]
+	if !ok {
+		return t, fmt.Errorf("%s: undefined identifier", ident)
+	}
 	return t, nil
 }
 
@@ -23,16 +27,34 @@ func (e Env[T]) Define(ident string, value T) {
 }
 
 type Context struct {
-	namespaces Env[string]
-	vars       Env[string]
+	namespaces           Env[string]
+	vars                 Env[string]
+	defaultElemNamespace string
 	defaultFuncNamespace string
 }
 
 func NewContext() *Context {
 	return &Context{
-		namespaces: make(Env[string]),
-		vars:       make(Env[string]),
+		namespaces:           make(Env[string]),
+		vars:                 make(Env[string]),
+		defaultFuncNamespace: nsUriFunc,
 	}
+}
+
+func (c *Context) RegisterVar(ident, value string) {
+	c.vars.Define(ident, value)
+}
+
+func (c *Context) RegisterNS(ident, value string) {
+	c.namespaces.Define(ident, value)
+}
+
+func (c *Context) SetDefaultElemNamespace(uri string) {
+	c.defaultElemNamespace = uri
+}
+
+func (c *Context) SetDefaultFuncNamespace(uri string) {
+	c.defaultFuncNamespace = uri
 }
 
 func (c *Context) ResolveFunctionNamespace(prefix string) (string, error) {
@@ -42,8 +64,8 @@ func (c *Context) ResolveFunctionNamespace(prefix string) (string, error) {
 	if prefix == nsPrefixFunc {
 		return nsUriFunc, nil
 	}
-	uri, ok := c.namespaces[prefix]
-	if !ok {
+	uri, err := c.namespaces.Resolve(prefix)
+	if err != nil {
 		return "", fmt.Errorf("%s: unregistered uri prefix", prefix)
 	}
 	return uri, nil
@@ -217,6 +239,11 @@ func convertTo(left, right Item) (any, any, error) {
 		if ok {
 			return e, x, nil
 		}
+	case int64:
+		x, ok := r.(int64)
+		if ok {
+			return e, x, nil
+		}
 	case string:
 		x, ok := r.(string)
 		if ok {
@@ -243,10 +270,16 @@ func stringify(value any) (string, error) {
 	switch v := v.(type) {
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
 	case string:
 		return v, nil
 	case bool:
 		return strconv.FormatBool(v), nil
+	case atomicItem:
+		return stringify(v.Value())
+	case nodeItem:
+		return stringify(v.Node())
 	default:
 		return "", err
 	}
@@ -256,6 +289,8 @@ func convertUntyped(value untyped, target any) (any, error) {
 	switch target.(type) {
 	case float64:
 		return toFloat(string(value))
+	case int64:
+		return toInt(string(value))
 	case string:
 		return toString(string(value))
 	case bool:
@@ -267,6 +302,14 @@ func convertUntyped(value untyped, target any) (any, error) {
 
 func toFloat(value string) (float64, error) {
 	v, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		err = ErrConvert
+	}
+	return v, err
+}
+
+func toInt(value string) (int64, error) {
+	v, err := strconv.ParseInt(value, 0, 64)
 	if err != nil {
 		err = ErrConvert
 	}
@@ -292,6 +335,8 @@ func castToFloat(value any) (float64, error) {
 	switch v := value.(type) {
 	case float64:
 		return v, nil
+	case int64:
+		return float64(v), nil
 	case string:
 		return strconv.ParseFloat(v, 64)
 	case bool:

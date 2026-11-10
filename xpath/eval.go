@@ -170,7 +170,7 @@ func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
 		return nil, err
 	}
 	qn := qname{
-		Uri: uri,
+		Uri:  uri,
 		Name: expr.Name.Name,
 	}
 	fn, ok := builtins[qn]
@@ -185,7 +185,11 @@ func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
 		}
 		args = append(args, res)
 	}
-	return fn(ctx, curr, args)
+	res, err := fn.Func(ctx, curr, args)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", qn.Name, err)
+	}
+	return res, err
 }
 
 func evalPath(expr path, curr Focus, ctx *Context) (Sequence, error) {

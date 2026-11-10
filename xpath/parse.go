@@ -490,7 +490,7 @@ func (p *Parser) parseAxis() (Axis, error) {
 func (p *Parser) parseArgs() ([]Expr, error) {
 	var list []Expr
 	for !p.done() && !p.is(EndGrp) {
-		a, err := p.parseExpr()
+		a, err := p.startExpr(powList)
 		if err != nil {
 			return nil, err
 		}

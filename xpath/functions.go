@@ -1,5 +1,15 @@
 package xpath
 
+import (
+	"errors"
+	"unicode/utf8"
+)
+
+var (
+	ErrSingleton = errors.New("singleton sequence expected")
+	ErrArgument  = errors.New("invalid number of arguments given")
+)
+
 type BuiltinFunc func(*Context, Focus, []Sequence) (Sequence, error)
 
 type Builtin struct {
@@ -55,11 +65,36 @@ func init() {
 }
 
 func callString(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Empty() {
+		return Singleton(""), nil
+	}
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	str, err := stringify(seq[0])
+	return Singleton(str), err
 }
 
 func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	var res string
+	for i := range args {
+		if args[i].Len() > 1 {
+			return nil, ErrSingleton
+		}
+		if args[i].Empty() {
+			continue
+		}
+		str, err := stringify(args[i][0])
+		if err != nil {
+			return nil, err
+		}
+		res += str
+	}
+	return Singleton(res), nil
 }
 
 func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -95,7 +130,22 @@ func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error)
 }
 
 func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Empty() {
+		return Singleton(0), nil
+	}
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	str, err := stringify(seq[0])
+	if err != nil {
+		return nil, err
+	}
+	n := utf8.RuneCountInString(str)
+	return Singleton(int64(n)), nil
 }
 
 func callNumber(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -135,39 +185,44 @@ func callMax(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callBoolean(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	ok, err := effectiveBooleanValue(args[0])
+	return Singleton(ok), err
 }
 
 func callTrue(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return Singleton(true), nil
 }
 
 func callFalse(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return Singleton(false), nil
 }
 
 func callNot(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	ok, err := effectiveBooleanValue(args[0])
+	return Singleton(!ok), err
 }
 
 func callExists(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	ok := !args[0].Empty()
+	return Singleton(ok), nil
 }
 
 func callEmpty(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	ok := args[0].Empty()
+	return Singleton(ok), nil
 }
 
 func callCount(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	n := args[0].Len()
+	return Singleton(int64(n)), nil
 }
 
 func callPosition(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return Singleton(int64(curr.Index)), nil
 }
 
 func callLast(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return Singleton(int64(curr.Size)), nil
 }
 
 func callName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -201,7 +256,9 @@ func callPath(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 func registerBuiltin(name string, do BuiltinFunc) {
 	qn := funcName(name)
 	builtins[qn] = Builtin{
-		Name: name,
-		Func: do,
+		Name:    name,
+		Func:    do,
+		MinArgs: -1,
+		MaxArgs: -1,
 	}
 }

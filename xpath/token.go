@@ -3,10 +3,13 @@ package xpath
 import "fmt"
 
 const (
-	kwAnd = "and"
-	kwOr  = "or"
-	kwMod = "mod"
-	kwDiv = "div"
+	kwAnd       = "and"
+	kwOr        = "or"
+	kwMod       = "mod"
+	kwDiv       = "div"
+	kwUnion     = "union"
+	kwIntersect = "intersect"
+	kwExcept    = "except"
 )
 
 type Token struct {
@@ -137,6 +140,7 @@ const (
 	powAdd
 	powMul
 	powUnion
+	powSet
 	powPrefix
 	powPath
 	powCall

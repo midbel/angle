@@ -138,6 +138,14 @@ func (p *Parser) getInfixFn() (func(Expr) (Expr, error), error) {
 			kind = And
 		case kwOr:
 			kind = Or
+		case kwUnion:
+			kind = Pipe
+		case kwIntersect:
+			return p.parseIntersect, nil
+		case kwExcept:
+			return p.parseExcept, nil
+		case kwUnion:
+			return p.parseUnion, nil
 		default:
 			return nil, fmt.Errorf("unsupported infix operator")
 		}
@@ -333,12 +341,40 @@ func (p *Parser) parseList(left Expr) (Expr, error) {
 	return list(expr), nil
 }
 
+func (p *Parser) parseExpect(left Expr) (Expr, error) {
+	var expr []Expr
+	expr = append(expr, left)
+	for p.is(Pipe) {
+		p.next()
+		e, err := p.startExpr(powSet)
+		if err != nil {
+			return nil, err
+		}
+		expr = append(expr, e)
+	}
+	return except(expr), nil
+}
+
+func (p *Parser) parseIntersect(left Expr) (Expr, error) {
+	var expr []Expr
+	expr = append(expr, left)
+	for p.is(Pipe) {
+		p.next()
+		e, err := p.startExpr(powSet)
+		if err != nil {
+			return nil, err
+		}
+		expr = append(expr, e)
+	}
+	return intersect(expr), nil
+}
+
 func (p *Parser) parseUnion(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
 	for p.is(Pipe) {
 		p.next()
-		e, err := p.startExpr(powLowest)
+		e, err := p.startExpr(powUnion)
 		if err != nil {
 			return nil, err
 		}
@@ -524,6 +560,10 @@ func (p *Parser) powerOf() int {
 			kind = And
 		case kwOr:
 			kind = Or
+		case kwUnion:
+			kind = Pipe
+		case kwIntersect, kwExcept:
+			return powSet
 		default:
 		}
 	}

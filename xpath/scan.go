@@ -120,16 +120,16 @@ func (s *Scanner) scanName(tok *Token) {
 		s.read()
 	}
 	tok.Literal = s.str.String()
-	switch tok.Literal {
-	case "div":
-		tok.Type = Div
-	case "and":
-		tok.Type = And
-	case "or":
-		tok.Type = Or
-	default:
-		tok.Type = Name
-	}
+	tok.Type = Name
+	// switch tok.Literal {
+	// case "div":
+	// 	tok.Type = Div
+	// case "and":
+	// 	tok.Type = And
+	// case "or":
+	// 	tok.Type = Or
+	// default:
+	// }
 }
 
 func (s *Scanner) scanVariable(tok *Token) {

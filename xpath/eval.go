@@ -118,6 +118,9 @@ func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err = checkAtomics(res); err != nil {
+			return nil, err
+		}
 		seq = append(seq, res...)
 	}
 	return seq, nil
@@ -150,7 +153,7 @@ func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
 			return nil, err
 		}
 		if i > 0 {
-			seq, err = intersectNodes(res, seq)
+			seq, err = intersectNodes(seq, res)
 			if err != nil {
 				return nil, err
 			}
@@ -830,11 +833,11 @@ func exceptNodes(left, right Sequence) (Sequence, error) {
 		ok := slices.ContainsFunc(right, func(it Item) bool {
 			return it.Node() == left[j].Node()
 		})
-		if ok {
+		if !ok {
 			tmp = append(tmp, left[j])
 		}
 	}
-	return left, nil
+	return tmp, nil
 }
 
 func intersectNodes(left, right Sequence) (Sequence, error) {
@@ -852,4 +855,13 @@ func intersectNodes(left, right Sequence) (Sequence, error) {
 		tmp = append(tmp, left[j])
 	}
 	return tmp, nil
+}
+
+func checkAtomics(seq Sequence) error {
+	for _, item := range seq {
+		if item.Atomic() {
+			return fmt.Errorf("%w not allowed", ErrAtomic)
+		}
+	}
+	return nil
 }

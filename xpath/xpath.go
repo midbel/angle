@@ -25,6 +25,7 @@ func (e Env[T]) Define(ident string, value T) {
 type Context struct {
 	namespaces Env[string]
 	vars       Env[string]
+	defaultFuncNamespace string
 }
 
 func NewContext() *Context {
@@ -32,6 +33,20 @@ func NewContext() *Context {
 		namespaces: make(Env[string]),
 		vars:       make(Env[string]),
 	}
+}
+
+func (c *Context) ResolveFunctionNamespace(prefix string) (string, error) {
+	if prefix == "" {
+		return c.defaultFuncNamespace, nil
+	}
+	if prefix == nsPrefixFunc {
+		return nsUriFunc, nil
+	}
+	uri, ok := c.namespaces[prefix]
+	if !ok {
+		return "", fmt.Errorf("%s: unregistered uri prefix", prefix)
+	}
+	return uri, nil
 }
 
 type qname struct {

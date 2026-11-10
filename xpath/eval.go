@@ -165,7 +165,27 @@ func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
-	return nil, nil
+	uri, err := ctx.ResolveFunctionNamespace(expr.Name.Prefix)
+	if err != nil {
+		return nil, err
+	}
+	qn := qname{
+		Uri: uri,
+		Name: expr.Name.Name,
+	}
+	fn, ok := builtins[qn]
+	if !ok {
+		return nil, fmt.Errorf("%s: undefined builtin function", expr.Name.Name)
+	}
+	args := make([]Sequence, 0, len(expr.Args))
+	for i := range expr.Args {
+		res, err := eval(expr.Args[i], curr, ctx)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, res)
+	}
+	return fn(ctx, curr, args)
 }
 
 func evalPath(expr path, curr Focus, ctx *Context) (Sequence, error) {

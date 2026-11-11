@@ -49,10 +49,10 @@ var inspectCmd = cli.Command{
 	Alias:   []string{"infos"},
 	Summary: "",
 	Usage:   "inspect <file>",
-	Handler: &inspectCommand{},	
+	Handler: &inspectCommand{},
 }
 
-type inspectCommand struct {}
+type inspectCommand struct{}
 
 func (c inspectCommand) Run(args []string) error {
 	set := cli.NewFlagSet("inspect")

@@ -44,6 +44,35 @@ func main() {
 	}
 }
 
+var inspectCmd = cli.Command{
+	Name:    "inspect",
+	Alias:   []string{"infos"},
+	Summary: "",
+	Usage:   "inspect <file>",
+	Handler: &inspectCommand{},	
+}
+
+type inspectCommand struct {}
+
+func (c inspectCommand) Run(args []string) error {
+	set := cli.NewFlagSet("inspect")
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	r, err := os.Open(set.Arg(0))
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	stats, err := xml.Infos(r)
+	if err != nil {
+		return err
+	}
+	_ = stats
+	return nil
+}
+
 var queryCmd = cli.Command{
 	Name:    "query",
 	Alias:   []string{"find"},
@@ -254,6 +283,7 @@ func prepare() *cli.CommandTrie {
 	root.Register(single("echo"), &echoCmd)
 	root.Register(single("format"), &fmtCmd)
 	root.Register(single("tree"), &treeCmd)
+	root.Register(single("inspect"), &inspectCmd)
 	return root
 }
 

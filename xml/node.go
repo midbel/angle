@@ -89,6 +89,10 @@ func (n Name) Equal(other Name) bool {
 	return n.Local == other.Local && n.Namespace.Equal(other.Namespace)
 }
 
+func (n Name) LocalName() string {
+	return n.Local
+}
+
 func (n Name) ExpandedName() string {
 	if n.URI == "" {
 		return n.Local

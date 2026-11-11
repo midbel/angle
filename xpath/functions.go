@@ -2,6 +2,7 @@ package xpath
 
 import (
 	"errors"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -69,26 +70,14 @@ func callString(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 		args = append(args, Singleton(curr.Item))
 	}
 	seq := args[0]
-	if seq.Empty() {
-		return Singleton(""), nil
-	}
-	if seq.Len() > 1 {
-		return nil, ErrSingleton
-	}
-	str, err := stringify(seq[0])
+	str, err := seq2str(seq)
 	return Singleton(str), err
 }
 
 func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	var res string
 	for i := range args {
-		if args[i].Len() > 1 {
-			return nil, ErrSingleton
-		}
-		if args[i].Empty() {
-			continue
-		}
-		str, err := stringify(args[i][0])
+		str, err := seq2str(args[i])
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +87,16 @@ func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := seq2str(args[0])
+	if err != nil {
+		return nil, err
+	}
+	sub, err := seq2str(args[1])
+	if err != nil {
+		return nil, err
+	}
+	ok := strings.Contains(str, sub)
+	return Singleton(ok), nil
 }
 
 func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -106,23 +104,74 @@ func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 }
 
 func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		args = append(args, Singleton(curr.Item))
+	}
+	var (
+		res  []rune
+		prev rune
+		seq  = args[0]
+	)
+	str, err := seq2str(seq)
+	if err != nil {
+		return nil, err
+	}
+	str = strings.TrimSpace(str)
+	res = make([]rune, 0, len(str))
+	for i := 0; i < len(str); {
+		c, z := utf8.DecodeRuneInString(str[i:])
+		i += z
+		if c == ' ' && prev == c {
+			continue
+		}
+		res = append(res, c)
+		prev = c
+	}
+	return Singleton(string(res)), nil
 }
 
 func callUppercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := seq2str(args[0])
+	if err != nil {
+		return nil, err
+	}
+	str = strings.ToUpper(str)
+	return Singleton(str), nil
 }
 
 func callLowercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := seq2str(args[0])
+	if err != nil {
+		return nil, err
+	}
+	str = strings.ToLower(str)
+	return Singleton(str), nil
 }
 
 func callStartsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := seq2str(args[0])
+	if err != nil {
+		return nil, err
+	}
+	prefix, err := seq2str(args[1])
+	if err != nil {
+		return nil, err
+	}
+	ok := strings.HasPrefix(str, prefix)
+	return Singleton(ok), nil
 }
 
 func callEndsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := seq2str(args[0])
+	if err != nil {
+		return nil, err
+	}
+	suffix, err := seq2str(args[1])
+	if err != nil {
+		return nil, err
+	}
+	ok := strings.HasSuffix(str, suffix)
+	return Singleton(ok), nil
 }
 
 func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -134,13 +183,7 @@ func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, erro
 		args = append(args, Singleton(curr.Item))
 	}
 	seq := args[0]
-	if seq.Empty() {
-		return Singleton(0), nil
-	}
-	if seq.Len() > 1 {
-		return nil, ErrSingleton
-	}
-	str, err := stringify(seq[0])
+	str, err := seq2str(seq)
 	if err != nil {
 		return nil, err
 	}
@@ -261,4 +304,14 @@ func registerBuiltin(name string, do BuiltinFunc) {
 		MinArgs: -1,
 		MaxArgs: -1,
 	}
+}
+
+func seq2str(seq Sequence) (string, error) {
+	if seq.Len() > 1 {
+		return "", ErrSingleton
+	}
+	if seq.Empty() {
+		return "", nil
+	}
+	return stringify(seq[0])
 }

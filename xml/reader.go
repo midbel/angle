@@ -118,136 +118,6 @@ func (b *Decoder) OnPI(p PI) error {
 	return nil
 }
 
-type (
-	OnElementFunc func(Element) error
-	OnTextFunc    func(Text) error
-	OnPiFunc      func(PI) error
-)
-
-type listeners struct {
-	onOpen     map[Name]OnElementFunc
-	onClose    map[Name]OnElementFunc
-	onOpenAny  OnElementFunc
-	onCloseAny OnElementFunc
-	onText     OnTextFunc
-}
-
-type Walker struct {
-	stack []listeners
-}
-
-func NewWalker() *Walker {
-	w := new(Walker)
-	w.Push()
-	return w
-}
-
-func (w *Walker) Walk(r io.Reader) error {
-	rs := NewReader(r)
-	return rs.Read(w)
-}
-
-func (w *Walker) OnElement(name Name, fn OnElementFunc) {
-
-}
-
-func (w *Walker) OnOpen(name Name, fn OnElementFunc) {
-	if i := len(w.stack) - 1; i >= 0 {
-		w.stack[i].onOpen[name] = fn
-	}
-}
-
-func (w *Walker) OnOpenAny(fn OnElementFunc) {
-	if i := len(w.stack) - 1; i >= 0 {
-		w.stack[i].onOpenAny = fn
-	}
-}
-
-func (w *Walker) OnClose(name Name, fn OnElementFunc) {
-	if i := len(w.stack) - 1; i >= 0 {
-		w.stack[i].onClose[name] = fn
-	}
-}
-
-func (w *Walker) OnCloseAny(fn OnElementFunc) {
-	if i := len(w.stack) - 1; i >= 0 {
-		w.stack[i].onCloseAny = fn
-	}
-}
-
-// func (w *Walker) OnPI(name Name, fn OnPiFunc) {
-
-// }
-
-// func (w *Walker) OnText(fn OnTextFunc) {
-// 	if i := len(w.stack) - 1; i >= 0 {
-// 		w.stack[i].onText = fn
-// 	}
-// }
-
-func (w *Walker) Push() {
-	s := listeners{
-		onOpen:  make(map[Name]OnElementFunc),
-		onClose: make(map[Name]OnElementFunc),
-	}
-	w.stack = append(w.stack, s)
-}
-
-func (w *Walker) Pop() {
-	if i := len(w.stack); i > 1 {
-		w.stack = w.stack[:i-1]
-	}
-}
-
-func (w *Walker) OnStartElement(Element, bool) error {
-	return nil
-}
-
-func (w *Walker) OnCloseElement(Name) error {
-	return nil
-}
-
-func (w *Walker) OnText(Text) error {
-	return nil
-}
-
-func (w *Walker) OnComment(Comment) error {
-	return nil
-}
-
-func (w *Walker) OnPI(PI) error {
-	return nil
-}
-
-func (w *Walker) dispatchOpen(el Element) error {
-	return nil
-}
-
-func (w *Walker) dispatchOpenAny(el Element) error {
-	return nil
-}
-
-func (w *Walker) dispatchClose(el Element) error {
-	return nil
-}
-
-func (w *Walker) dispatchCloseAny(el Element) error {
-	return nil
-}
-
-func (w *Walker) dispatchText(txt Text) error {
-	return nil
-}
-
-func (w *Walker) dispatchPi(pi PI) error {
-	return nil
-}
-
-type context struct {
-	Name
-	NS []Namespace
-}
-
 type Reader struct {
 	scan *scanner
 	curr Token
@@ -707,4 +577,9 @@ func (r *Reader) checkRootElement() error {
 	}
 	r.hasRoot = true
 	return nil
+}
+
+type context struct {
+	Name
+	NS []Namespace
 }

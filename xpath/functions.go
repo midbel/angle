@@ -2,6 +2,8 @@ package xpath
 
 import (
 	"errors"
+	"math"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -9,6 +11,9 @@ import (
 var (
 	ErrSingleton = errors.New("singleton sequence expected")
 	ErrArgument  = errors.New("invalid number of arguments given")
+	ErrContext   = errors.New("missing context")
+	ErrOverflow  = errors.New("overflow")
+	ErrType      = errors.New("invalid type")
 )
 
 type BuiltinFunc func(*Context, Focus, []Sequence) (Sequence, error)
@@ -192,11 +197,53 @@ func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, erro
 }
 
 func callNumber(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Empty() {
+		return Singleton(math.NaN()), nil
+	}
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	val, err := atomize(seq[0].Value())
+	if err != nil {
+		return nil, err
+	}
+	res, err := castToFloat(val)
+	if err != nil {
+		res = math.NaN()
+	}
+	return Singleton(res), nil
 }
 
 func callAbs(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return seq2seq(args[0], func(val any) (Sequence, error) {
+		switch v := val.(type) {
+		case untyped:
+			x, err := strconv.ParseFloat(string(v), 64)
+			if err != nil {
+				return nil, ErrConvert
+			}
+			return Singleton(math.Abs(x)), nil
+		case int64:
+			if v == math.MinInt64 {
+				return nil, ErrOverflow
+			}
+			if v < 0 {
+				v = -v
+			}
+			return Singleton(v), nil
+		case float64:
+			return Singleton(math.Abs(v)), nil
+		default:
+			return nil, ErrType
+		}
+	})
 }
 
 func callFloor(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -314,4 +361,18 @@ func seq2str(seq Sequence) (string, error) {
 		return "", nil
 	}
 	return stringify(seq[0])
+}
+
+func seq2seq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, error) {
+	if seq.Empty() {
+		return nil, nil
+	}
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	val, err := atomize(seq[0].Value())
+	if err != nil {
+		return nil, err
+	}
+	return do(val)
 }

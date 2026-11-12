@@ -17,8 +17,8 @@ type Reader struct {
 	names []xml.Name
 }
 
-func New() *Observer {
-	w := new(Observer)
+func New() *Reader {
+	w := new(Reader)
 	w.Push()
 	return w
 }

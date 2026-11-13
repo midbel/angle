@@ -75,14 +75,14 @@ func callString(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 		args = append(args, Singleton(curr.Item))
 	}
 	seq := args[0]
-	str, err := seq2str(seq)
+	str, err := stringSeq(seq)
 	return Singleton(str), err
 }
 
 func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	var res string
 	for i := range args {
-		str, err := seq2str(args[i])
+		str, err := stringSeq(args[i])
 		if err != nil {
 			return nil, err
 		}
@@ -92,11 +92,11 @@ func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := seq2str(args[0])
+	str, err := stringSeq(args[0])
 	if err != nil {
 		return nil, err
 	}
-	sub, err := seq2str(args[1])
+	sub, err := stringSeq(args[1])
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, er
 		prev rune
 		seq  = args[0]
 	)
-	str, err := seq2str(seq)
+	str, err := stringSeq(seq)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, er
 }
 
 func callUppercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := seq2str(args[0])
+	str, err := stringSeq(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func callUppercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 }
 
 func callLowercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := seq2str(args[0])
+	str, err := stringSeq(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -154,11 +154,11 @@ func callLowercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 }
 
 func callStartsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := seq2str(args[0])
+	str, err := stringSeq(args[0])
 	if err != nil {
 		return nil, err
 	}
-	prefix, err := seq2str(args[1])
+	prefix, err := stringSeq(args[1])
 	if err != nil {
 		return nil, err
 	}
@@ -167,11 +167,11 @@ func callStartsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error)
 }
 
 func callEndsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := seq2str(args[0])
+	str, err := stringSeq(args[0])
 	if err != nil {
 		return nil, err
 	}
-	suffix, err := seq2str(args[1])
+	suffix, err := stringSeq(args[1])
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, erro
 		args = append(args, Singleton(curr.Item))
 	}
 	seq := args[0]
-	str, err := seq2str(seq)
+	str, err := stringSeq(seq)
 	if err != nil {
 		return nil, err
 	}
@@ -222,14 +222,8 @@ func callNumber(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callAbs(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return seq2seq(args[0], func(val any) (Sequence, error) {
+	return numberSeq(args[0], func(val any) (Sequence, error) {
 		switch v := val.(type) {
-		case untyped:
-			x, err := strconv.ParseFloat(string(v), 64)
-			if err != nil {
-				return nil, ErrConvert
-			}
-			return Singleton(math.Abs(x)), nil
 		case int64:
 			if v == math.MinInt64 {
 				return nil, ErrOverflow
@@ -247,15 +241,45 @@ func callAbs(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callFloor(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return numberSeq(args[0], func(val any) (Sequence, error) {
+		switch v := val.(type) {
+		case int64:
+			return Singleton(v), nil
+		case float64:
+			return Singleton(math.Floor(v)), nil
+		default:
+			return nil, ErrType
+		}
+	})
 }
 
 func callCeiling(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return numberSeq(args[0], func(val any) (Sequence, error) {
+		switch v := val.(type) {
+		case int64:
+			return Singleton(v), nil
+		case float64:
+			return Singleton(math.Ceil(v)), nil
+		default:
+			return nil, ErrType
+		}
+	})
 }
 
 func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	return numberSeq(args[0], func(val any) (Sequence, error) {
+		switch v := val.(type) {
+		case int64:
+			return Singleton(v), nil
+		case float64:
+            if math.IsNaN(v) || math.IsInf(v, 0) || v == 0 {
+                return Singleton(v), nil
+            }
+			return Singleton(math.Round(v+0.5)), nil
+		default:
+			return nil, ErrType
+		}
+	})
 }
 
 func callSum(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -353,7 +377,7 @@ func registerBuiltin(name string, do BuiltinFunc) {
 	}
 }
 
-func seq2str(seq Sequence) (string, error) {
+func stringSeq(seq Sequence) (string, error) {
 	if seq.Len() > 1 {
 		return "", ErrSingleton
 	}
@@ -363,7 +387,7 @@ func seq2str(seq Sequence) (string, error) {
 	return stringify(seq[0])
 }
 
-func seq2seq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, error) {
+func numberSeq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, error) {
 	if seq.Empty() {
 		return nil, nil
 	}
@@ -374,5 +398,24 @@ func seq2seq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, error)
 	if err != nil {
 		return nil, err
 	}
+	val, ok := castToNumber(val)
+	if !ok {
+		return nil, ErrType
+	}
 	return do(val)
+}
+
+func castToNumber(val any) (any, bool) {
+	switch v := val.(type) {
+	case int64, float64:
+		return val, true
+	case untyped:
+		f, err := strconv.ParseFloat(string(v), 64)
+		if err == nil {
+			return f, true
+		}
+		return nil, false
+	default:
+		return nil, false
+	}
 }

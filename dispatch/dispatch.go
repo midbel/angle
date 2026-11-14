@@ -14,7 +14,6 @@ type (
 
 type Reader struct {
 	stack []listeners
-	names []xml.Name
 }
 
 func New() *Reader {
@@ -114,8 +113,6 @@ func (r *Reader) Pop() {
 }
 
 func (r *Reader) dispatchOpen(el xml.Element) error {
-	r.pushName(el.Name)
-
 	var found bool
 	for i := len(r.stack) - 1; i >= 0; i-- {
 		fn, ok := r.stack[i].onOpen[el.Name]
@@ -147,8 +144,6 @@ func (r *Reader) dispatchOpenAny(el xml.Element) error {
 }
 
 func (r *Reader) dispatchClose(el xml.Element) error {
-	defer r.popName()
-
 	var found bool
 	for i := len(r.stack) - 1; i >= 0; i-- {
 		fn, ok := r.stack[i].onClose[el.Name]
@@ -203,18 +198,6 @@ func (r *Reader) dispatchText(txt xml.Text) error {
 		}
 	}
 	return nil
-}
-
-func (r *Reader) pushName(qn xml.Name) {
-	o.names = append(o.names, qn)
-}
-
-func (r *Reader) popName() {
-	n := len(r.names)
-	if n == 0 {
-		return
-	}
-	r.names = r.names[:n-1]
 }
 
 type handler struct {

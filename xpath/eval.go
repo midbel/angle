@@ -46,7 +46,7 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 	case except:
 		seq, err = evalExcept(e, curr, ctx)
 	case list:
-		seq, err = evalList(e, curr, ctx)
+		return evalList(e, curr, ctx)
 	case root:
 		seq, err = evalRoot(e, curr, ctx)
 	case current:
@@ -317,7 +317,11 @@ func evalName(expr nameTest, curr Focus, ctx *Context) (Sequence, error) {
 		return nil, nil
 	}
 	if expr.Prefix != "" && expr.Prefix != "*" {
-		if expr.Prefix != n.Prefix {
+		uri, err := ctx.ResolveElementNamespace(expr.Prefix)
+		if err != nil {
+			return nil, err
+		}
+		if n.URI != uri {
 			return nil, nil
 		}
 	}
@@ -397,10 +401,6 @@ func evalBinary(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalArithmetic(expr binary, curr Focus, ctx *Context) (Sequence, error) {
-	var (
-		value float64
-		err   error
-	)
 	seq1, err := eval(expr.left, curr, ctx)
 	if err != nil {
 		return nil, err
@@ -411,22 +411,18 @@ func evalArithmetic(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 	}
 	switch expr.op {
 	case Add:
-		value, err = doAdd(seq1, seq2)
+		return doAdd(seq1, seq2)
 	case Sub:
-		value, err = doSub(seq1, seq2)
+		return doSub(seq1, seq2)
 	case Mul:
-		value, err = doMul(seq1, seq2)
+		return doMul(seq1, seq2)
 	case Div:
-		value, err = doDiv(seq1, seq2)
+		return doDiv(seq1, seq2)
 	case Mod:
-		value, err = doMod(seq1, seq2)
+		return doMod(seq1, seq2)
 	default:
-		err = fmt.Errorf("unsupported arithmetic operator")
+		return nil, fmt.Errorf("unsupported arithmetic operator")
 	}
-	if err != nil {
-		return nil, err
-	}
-	return Singleton(value), nil
 }
 
 func evalConcat(expr binary, curr Focus, ctx *Context) (Sequence, error) {
@@ -682,58 +678,77 @@ func compare(left, right Sequence, cmp func(left, right any) (bool, error)) (boo
 	return false, nil
 }
 
-func doAdd(left, right Sequence) (float64, error) {
+func doAdd(left, right Sequence) (Sequence, error) {
 	return compute(left, right, func(left, right float64) (float64, error) {
 		return left + right, nil
 	})
 }
 
-func doSub(left, right Sequence) (float64, error) {
+func doSub(left, right Sequence) (Sequence, error) {
 	return compute(left, right, func(left, right float64) (float64, error) {
 		return left - right, nil
 	})
 }
 
-func doMul(left, right Sequence) (float64, error) {
+func doMul(left, right Sequence) (Sequence, error) {
 	return compute(left, right, func(left, right float64) (float64, error) {
 		return left * right, nil
 	})
 }
 
-func doDiv(left, right Sequence) (float64, error) {
+func doDiv(left, right Sequence) (Sequence, error) {
 	return compute(left, right, func(left, right float64) (float64, error) {
 		if right == 0 {
-			return 0, fmt.Errorf("division by zeri")
+			return 0, fmt.Errorf("division by zero")
 		}
 		return left / right, nil
 	})
 }
 
-func doMod(left, right Sequence) (float64, error) {
+func doMod(left, right Sequence) (Sequence, error) {
 	return compute(left, right, func(left, right float64) (float64, error) {
 		if right == 0 {
-			return 0, fmt.Errorf("division by zeri")
+			return 0, fmt.Errorf("division by zero")
 		}
 		return math.Mod(left, right), nil
 	})
 }
 
-func compute(left, right Sequence, do func(left, right float64) (float64, error)) (float64, error) {
+func compute(left, right Sequence, do func(left, right float64) (float64, error)) (Sequence, error) {
 	if left.Empty() || right.Empty() {
-		return 0, nil
+		return nil, nil
 	}
 	if left.Len() != 1 || right.Len() != 1 {
-		return 0, fmt.Errorf("singletons sequence expected on arithmetic")
+		return nil, ErrSingleton
 	}
-	x1, ok := left[0].Value().(float64)
-	if !ok {
-		return 0, fmt.Errorf("number expected on left side of arithmetic operation")
+	var (
+		x1, x2 float64
+		c1, c2 bool
+	)
+	switch v := left[0].Value().(type) {
+	case int64:
+		x1, c1 = float64(v), true
+	case float64:
+		x1 = v
+	default:
+		return nil, ErrType
 	}
-	x2, ok := right[0].Value().(float64)
-	if !ok {
-		return 0, fmt.Errorf("number expected on right side of arithmetic operation")
+	switch v := right[0].Value().(type) {
+	case int64:
+		x2, c2 = float64(v), true
+	case float64:
+		x2 = v
+	default:
+		return nil, ErrType
 	}
-	return do(x1, x2)
+	x, err := do(x1, x2)
+	if err != nil {
+		return nil, err
+	}
+	if c1 && c2 {
+		return Singleton(int64(x)), nil
+	}
+	return Singleton(x), nil
 }
 
 func isMatch(seq Sequence, index int) (bool, error) {
@@ -849,6 +864,9 @@ func getNameFromNode(node xml.Node) (xml.Name, bool) {
 }
 
 func exceptNodes(left, right Sequence) (Sequence, error) {
+	if err := checkAtomics(right); err != nil {
+		return nil, err
+	}
 	var tmp Sequence
 	for j := range left {
 		if left[j].Atomic() {
@@ -865,6 +883,9 @@ func exceptNodes(left, right Sequence) (Sequence, error) {
 }
 
 func intersectNodes(left, right Sequence) (Sequence, error) {
+	if err := checkAtomics(right); err != nil {
+		return nil, err
+	}
 	var tmp Sequence
 	for j := range left {
 		if left[j].Atomic() {

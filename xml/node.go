@@ -129,7 +129,7 @@ func (d *Document) Root() (Node, error) {
 
 func (d *Document) Content() string {
 	r, err := d.Root()
-	if err == nil {
+	if err != nil {
 		return ""
 	}
 	return r.Content()

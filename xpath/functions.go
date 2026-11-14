@@ -110,6 +110,9 @@ func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 
 func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
 		args = append(args, Singleton(curr.Item))
 	}
 	var (
@@ -185,6 +188,9 @@ func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error)
 
 func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
 		args = append(args, Singleton(curr.Item))
 	}
 	seq := args[0]
@@ -272,10 +278,10 @@ func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 		case int64:
 			return Singleton(v), nil
 		case float64:
-            if math.IsNaN(v) || math.IsInf(v, 0) || v == 0 {
-                return Singleton(v), nil
-            }
-			return Singleton(math.Round(v+0.5)), nil
+			if math.IsNaN(v) || math.IsInf(v, 0) || v == 0 {
+				return Singleton(v), nil
+			}
+			return Singleton(math.Round(v + 0.5)), nil
 		default:
 			return nil, ErrType
 		}

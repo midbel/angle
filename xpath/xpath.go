@@ -28,7 +28,7 @@ func (e Env[T]) Define(ident string, value T) {
 
 type Context struct {
 	namespaces           Env[string]
-	vars                 Env[string]
+	vars                 Env[any]
 	defaultElemNamespace string
 	defaultFuncNamespace string
 }
@@ -36,12 +36,12 @@ type Context struct {
 func NewContext() *Context {
 	return &Context{
 		namespaces:           make(Env[string]),
-		vars:                 make(Env[string]),
+		vars:                 make(Env[any]),
 		defaultFuncNamespace: nsUriFunc,
 	}
 }
 
-func (c *Context) RegisterVar(ident, value string) {
+func (c *Context) RegisterVar(ident string, value any) {
 	c.vars.Define(ident, value)
 }
 
@@ -55,6 +55,17 @@ func (c *Context) SetDefaultElemNamespace(uri string) {
 
 func (c *Context) SetDefaultFuncNamespace(uri string) {
 	c.defaultFuncNamespace = uri
+}
+
+func (c *Context) ResolveElementNamespace(prefix string) (string, error) {
+	if prefix == "" {
+		return c.defaultElemNamespace, nil
+	}
+	uri, err := c.namespaces.Resolve(prefix)
+	if err != nil {
+		return "", fmt.Errorf("%s: unregistered uri prefix", prefix)
+	}
+	return uri, nil
 }
 
 func (c *Context) ResolveFunctionNamespace(prefix string) (string, error) {
@@ -115,7 +126,6 @@ func (c Focus) Sub(item Item, size, ix int) Focus {
 type Item interface {
 	Node() xml.Node
 	Value() any
-	True() bool
 	Atomic() bool
 }
 
@@ -167,10 +177,6 @@ func (i nodeItem) Value() any {
 	return i.node
 }
 
-func (i nodeItem) True() bool {
-	return false
-}
-
 func (nodeItem) Atomic() bool {
 	return false
 }
@@ -191,10 +197,6 @@ func (atomicItem) Node() xml.Node {
 
 func (a atomicItem) Value() any {
 	return a.value
-}
-
-func (a atomicItem) True() bool {
-	return false
 }
 
 func (atomicItem) Atomic() bool {
@@ -322,7 +324,7 @@ func toString(value string) (string, error) {
 
 func toBool(value string) (bool, error) {
 	b, err := strconv.ParseBool(value)
-	if err == nil {
+	if err != nil {
 		err = ErrConvert
 	}
 	return b, err

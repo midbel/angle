@@ -1,0 +1,141 @@
+package xpath
+
+import "strconv"
+
+func convertTo(left, right Item) (any, any, error) {
+	e, err := atomize(left.Value())
+	if err != nil {
+		return nil, nil, err
+	}
+	r, err := atomize(right.Value())
+	if err != nil {
+		return nil, nil, err
+	}
+	var x any
+	switch e := e.(type) {
+	case untyped:
+		x, err = convertUntyped(e, r)
+	case float64:
+		x, err = convertFloat(e, r)
+	case int64:
+		x, err = convertInt(e, r)
+	case bool:
+		x, err = convertBool(e, r)
+	case string:
+		x, err = convertString(e, r)
+	default:
+		return nil, nil, ErrConvert
+	}
+	return x, r, err
+}
+
+func promoteTo(left, right Item) (any, error) {
+	return nil, nil
+}
+
+func convertUntyped(value untyped, target any) (any, error) {
+	switch target.(type) {
+	case untyped:
+		return value, nil
+	case float64:
+		v, err := strconv.ParseFloat(string(value), 64)
+		if err != nil {
+			err = ErrConvert
+		}
+		return v, err
+	case int64:
+		v, err := strconv.ParseInt(string(value), 0, 64)
+		if err != nil {
+			err = ErrConvert
+		}
+		return v, err
+	case string:
+		return string(value), nil
+	case bool:
+		b, err := strconv.ParseBool(string(value))
+		if err != nil {
+			err = ErrConvert
+		}
+		return b, err
+	default:
+		return nil, ErrConvert
+	}
+}
+
+func convertFloat(value float64, target any) (any, error) {
+	switch target.(type) {
+	case float64:
+		return value, nil
+	case string:
+		return strconv.FormatFloat(value, 'f', -1, 64), nil
+	default:
+		return nil, ErrConvert
+	}
+}
+
+func convertInt(value int64, target any) (any, error) {
+	switch target.(type) {
+	case int64:
+		return value, nil
+	case float64:
+		return int64(value), nil
+	case string:
+		return strconv.FormatInt(value, 10), nil
+	default:
+		return nil, ErrConvert
+	}
+}
+
+func convertBool(value bool, target any) (any, error) {
+	switch target.(type) {
+	case bool:
+		return value, nil
+	default:
+		return nil, ErrConvert
+	}
+}
+
+func convertString(value string, target any) (any, error) {
+	switch target.(type) {
+	case string:
+		return value, nil
+	default:
+		return nil, ErrConvert
+	}
+}
+
+func castToFloat(value any) (float64, error) {
+	if u, ok := value.(untyped); ok {
+		return castToFloat(string(u))
+	}
+	switch v := value.(type) {
+	case float64:
+		return v, nil
+	case int64:
+		return float64(v), nil
+	case string:
+		return strconv.ParseFloat(v, 64)
+	case bool:
+		if v {
+			return 1, nil
+		}
+		return 0, nil
+	default:
+		return 0, ErrConvert
+	}
+}
+
+func castToNumber(val any) (any, bool) {
+	switch v := val.(type) {
+	case int64, float64:
+		return val, true
+	case untyped:
+		f, err := strconv.ParseFloat(string(v), 64)
+		if err == nil {
+			return f, true
+		}
+		return nil, false
+	default:
+		return nil, false
+	}
+}

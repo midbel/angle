@@ -29,8 +29,19 @@ func convertTo(left, right Item) (any, any, error) {
 	return x, r, err
 }
 
-func promoteTo(left, right Item) (any, error) {
-	return nil, nil
+func promoteTo(left, right any) (any, any, error) {
+	switch e := left.(type) {
+	case int64:
+		if _, ok := right.(float64); ok {
+			return float64(e), right, nil
+		}
+	case float64:
+		if r, ok := right.(int64); ok {
+			return left, float64(r), nil
+		}
+	default:
+	}
+	return left, right, nil
 }
 
 func convertUntyped(value untyped, target any) (any, error) {

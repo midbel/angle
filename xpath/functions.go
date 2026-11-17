@@ -3,7 +3,6 @@ package xpath
 import (
 	"errors"
 	"math"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -281,7 +280,7 @@ func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 			if math.IsNaN(v) || math.IsInf(v, 0) || v == 0 {
 				return Singleton(v), nil
 			}
-			return Singleton(math.Round(v + 0.5)), nil
+			return Singleton(math.Round(v)), nil
 		default:
 			return nil, ErrType
 		}
@@ -409,19 +408,4 @@ func numberSeq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, erro
 		return nil, ErrType
 	}
 	return do(val)
-}
-
-func castToNumber(val any) (any, bool) {
-	switch v := val.(type) {
-	case int64, float64:
-		return val, true
-	case untyped:
-		f, err := strconv.ParseFloat(string(v), 64)
-		if err == nil {
-			return f, true
-		}
-		return nil, false
-	default:
-		return nil, false
-	}
 }

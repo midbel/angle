@@ -215,52 +215,6 @@ func atomize(value any) (any, error) {
 	}
 }
 
-func convertTo(left, right Item) (any, any, error) {
-	e, err := atomize(left.Value())
-	if err != nil {
-		return nil, nil, err
-	}
-	r, err := atomize(right.Value())
-	if err != nil {
-		return nil, nil, err
-	}
-	if _, ok := e.(untyped); ok {
-		if _, ok := r.(untyped); ok {
-			return string(e.(untyped)), string(r.(untyped)), nil
-		}
-		x, err := convertUntyped(e.(untyped), r)
-		return x, r, err
-	}
-	if r, ok := r.(untyped); ok {
-		x, err := convertUntyped(r, e)
-		return e, x, err
-	}
-	switch e := e.(type) {
-	case float64:
-		x, ok := r.(float64)
-		if ok {
-			return e, x, nil
-		}
-	case int64:
-		x, ok := r.(int64)
-		if ok {
-			return e, x, nil
-		}
-	case string:
-		x, ok := r.(string)
-		if ok {
-			return e, x, nil
-		}
-	case bool:
-		x, ok := r.(bool)
-		if ok {
-			return e, x, nil
-		}
-	default:
-	}
-	return nil, nil, ErrConvert
-}
-
 func stringify(value any) (string, error) {
 	v, err := atomize(value)
 	if err != nil {
@@ -284,69 +238,5 @@ func stringify(value any) (string, error) {
 		return stringify(v.Node())
 	default:
 		return "", err
-	}
-}
-
-func convertUntyped(value untyped, target any) (any, error) {
-	switch target.(type) {
-	case float64:
-		return toFloat(string(value))
-	case int64:
-		return toInt(string(value))
-	case string:
-		return toString(string(value))
-	case bool:
-		return toBool(string(value))
-	default:
-		return nil, ErrConvert
-	}
-}
-
-func toFloat(value string) (float64, error) {
-	v, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		err = ErrConvert
-	}
-	return v, err
-}
-
-func toInt(value string) (int64, error) {
-	v, err := strconv.ParseInt(value, 0, 64)
-	if err != nil {
-		err = ErrConvert
-	}
-	return v, err
-}
-
-func toString(value string) (string, error) {
-	return value, nil
-}
-
-func toBool(value string) (bool, error) {
-	b, err := strconv.ParseBool(value)
-	if err != nil {
-		err = ErrConvert
-	}
-	return b, err
-}
-
-func castToFloat(value any) (float64, error) {
-	if u, ok := value.(untyped); ok {
-		return castToFloat(string(u))
-	}
-	switch v := value.(type) {
-	case float64:
-		return v, nil
-	case int64:
-		return float64(v), nil
-	case string:
-		return strconv.ParseFloat(v, 64)
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	default:
-		return 0, ErrConvert
 	}
 }

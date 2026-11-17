@@ -663,9 +663,27 @@ func compare(left, right Sequence, cmp func(left, right any) (bool, error)) (boo
 	if left.Empty() || right.Empty() {
 		return false, nil
 	}
+	conv := func(left, right Item) (any, any, error) {
+		e, r, err := convertTo(left, right)
+		if err != nil {
+			return nil, nil, err
+		}
+		if u, ok := e.(untyped); ok {
+			if v, ok := r.(untyped); ok {
+				return string(u), string(v), nil
+			}
+			e, err := convertUntyped(u, r)
+			return e, r, err
+		}
+		if v, ok := r.(untyped); ok {
+			r, err := convertUntyped(v, e)
+			return e, r, err
+		}
+		return e, r, nil
+	}
 	for i := range left {
 		for j := range right {
-			e, r, err := convertTo(left[i], right[j])
+			e, r, err := conv(left[i], right[j])
 			if err != nil {
 				return false, err
 			}

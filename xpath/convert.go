@@ -48,14 +48,8 @@ func convertUntyped(value untyped, target any) (any, error) {
 	switch target.(type) {
 	case untyped:
 		return value, nil
-	case float64:
+	case float64, int64:
 		v, err := strconv.ParseFloat(string(value), 64)
-		if err != nil {
-			err = ErrConvert
-		}
-		return v, err
-	case int64:
-		v, err := strconv.ParseInt(string(value), 0, 64)
 		if err != nil {
 			err = ErrConvert
 		}
@@ -78,7 +72,7 @@ func convertFloat(value float64, target any) (any, error) {
 	case float64:
 		return value, nil
 	case string:
-		return strconv.FormatFloat(value, 'f', -1, 64), nil
+		return strconv.FormatFloat(value, 'g', -1, 64), nil
 	default:
 		return nil, ErrConvert
 	}
@@ -88,8 +82,6 @@ func convertInt(value int64, target any) (any, error) {
 	switch target.(type) {
 	case int64:
 		return value, nil
-	case float64:
-		return int64(value), nil
 	case string:
 		return strconv.FormatInt(value, 10), nil
 	default:

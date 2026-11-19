@@ -578,6 +578,12 @@ func isNe(left, right Sequence) (bool, error) {
 func isGt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right any) (bool, error) {
 		switch e := left.(type) {
+		case int64:
+			r, ok := right.(int64)
+			if !ok {
+				return false, compareError(left, right)
+			}
+			return e > r, nil
 		case float64:
 			r, ok := right.(float64)
 			if !ok {
@@ -599,6 +605,12 @@ func isGt(left, right Sequence) (bool, error) {
 func isGe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right any) (bool, error) {
 		switch e := left.(type) {
+		case int64:
+			r, ok := right.(int64)
+			if !ok {
+				return false, compareError(left, right)
+			}
+			return e >= r, nil
 		case float64:
 			r, ok := right.(float64)
 			if !ok {
@@ -620,6 +632,12 @@ func isGe(left, right Sequence) (bool, error) {
 func isLt(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right any) (bool, error) {
 		switch e := left.(type) {
+		case int64:
+			r, ok := right.(int64)
+			if !ok {
+				return false, compareError(left, right)
+			}
+			return e < r, nil
 		case float64:
 			r, ok := right.(float64)
 			if !ok {
@@ -641,6 +659,12 @@ func isLt(left, right Sequence) (bool, error) {
 func isLe(left, right Sequence) (bool, error) {
 	return compare(left, right, func(left, right any) (bool, error) {
 		switch e := left.(type) {
+		case int64:
+			r, ok := right.(int64)
+			if !ok {
+				return false, compareError(left, right)
+			}
+			return e <= r, nil
 		case float64:
 			r, ok := right.(float64)
 			if !ok {
@@ -663,27 +687,9 @@ func compare(left, right Sequence, cmp func(left, right any) (bool, error)) (boo
 	if left.Empty() || right.Empty() {
 		return false, nil
 	}
-	conv := func(left, right Item) (any, any, error) {
-		e, r, err := convertTo(left, right)
-		if err != nil {
-			return nil, nil, err
-		}
-		if u, ok := e.(untyped); ok {
-			if v, ok := r.(untyped); ok {
-				return string(u), string(v), nil
-			}
-			e, err := convertUntyped(u, r)
-			return e, r, err
-		}
-		if v, ok := r.(untyped); ok {
-			r, err := convertUntyped(v, e)
-			return e, r, err
-		}
-		return e, r, nil
-	}
 	for i := range left {
 		for j := range right {
-			e, r, err := conv(left[i], right[j])
+			e, r, err := convertTo(left[i], right[j])
 			if err != nil {
 				return false, err
 			}

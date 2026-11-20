@@ -21,10 +21,11 @@ var (
 type BuiltinFunc func(*Context, Focus, []Sequence) (Sequence, error)
 
 type Builtin struct {
-	Name    string
-	MinArgs int
-	MaxArgs int
-	Func    BuiltinFunc
+	Name       string
+	UseCtxItem bool
+	MinArgs    int
+	MaxArgs    int
+	Func       BuiltinFunc
 }
 
 func funcName(name string) qname {
@@ -680,13 +681,14 @@ func callHasChildren(ctx *Context, curr Focus, args []Sequence) (Sequence, error
 // 	return nil, nil
 // }
 
-func registerBuiltin(name string, do BuiltinFunc) {
+func registerBuiltin(name string, minArgs, maxArgs int, useCtxtItem bool, do BuiltinFunc) {
 	qn := funcName(name)
 	builtins[qn] = Builtin{
-		Name:    name,
-		Func:    do,
-		MinArgs: -1,
-		MaxArgs: -1,
+		Name:       name,
+		Func:       do,
+		UseCtxItem: useCtxItem,
+		MinArgs:    minArgs,
+		MaxArgs:    maxArgs,
 	}
 }
 

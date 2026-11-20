@@ -185,6 +185,18 @@ func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
 		}
 		args = append(args, res)
 	}
+	if fn.UseCtxItem && len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	if fn.MinArgs >= 0 && len(args) < fn.MinArgs {
+		return nil, ErrArgument
+	}
+	if fn.MaxArgs >= 0 && len(args) > fn.MaxArgs {
+		return nil, ErrArgument
+	}
 	res, err := fn.Func(ctx, curr, args)
 	if err != nil {
 		err = fmt.Errorf("%s: %w", qn.Name, err)

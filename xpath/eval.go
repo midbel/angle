@@ -745,34 +745,52 @@ func compute(left, right Sequence, do func(left, right float64) (float64, error)
 	if left.Len() != 1 || right.Len() != 1 {
 		return nil, ErrSingleton
 	}
-	var (
-		x1, x2 float64
-		c1, c2 bool
-	)
-	switch v := left[0].Value().(type) {
-	case int64:
-		x1, c1 = float64(v), true
-	case float64:
-		x1 = v
-	default:
-		return nil, ErrType
-	}
-	switch v := right[0].Value().(type) {
-	case int64:
-		x2, c2 = float64(v), true
-	case float64:
-		x2 = v
-	default:
-		return nil, ErrType
-	}
-	x, err := do(x1, x2)
+	e, r, err := convertTo(left[0], right[0])
 	if err != nil {
 		return nil, err
 	}
-	if c1 && c2 {
-		return Singleton(int64(x)), nil
+	if !isNumeric(e) || !isNumeric(r) {
+		return nil, ErrType
+	}
+	e, r, err = promoteTo(e, r)
+	if err != nil {
+		return nil, err
+	}
+	x, err := doCompute(e, r, do)
+	if err != nil {
+		return nil, err
 	}
 	return Singleton(x), nil
+}
+
+func doCompute(left, right any, do func(left, right float64) (float64, error)) (any, error) {
+	conv := func(v any) (float64, bool, error) {
+		switch x := left.(type) {
+		case int64:
+			return float64(x), true, nil
+		case float64:
+			return x, false, nil
+		default:
+			return 0, false, ErrType
+		}
+
+	}
+	v1, ok1, err := conv(left)
+	if err != nil {
+		return 0, err
+	}
+	v2, ok2, err := conv(right)
+	if err != nil {
+		return 0, err
+	}
+	x, err := do(v1, v2)
+	if err != nil {
+		return nil, err
+	}
+	if ok1 && ok2 {
+		return int64(x), nil
+	}
+	return x, nil
 }
 
 func isMatch(seq Sequence, index int) (bool, error) {

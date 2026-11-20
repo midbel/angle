@@ -40,6 +40,7 @@ func promoteTo(left, right any) (any, any, error) {
 			return left, float64(r), nil
 		}
 	default:
+		return nil, nil, ErrType
 	}
 	return left, right, nil
 }
@@ -104,6 +105,15 @@ func convertString(value string, target any) (any, error) {
 		return value, nil
 	default:
 		return nil, ErrConvert
+	}
+}
+
+func isNumeric(value any) bool {
+	switch value.(type) {
+	case int64, float64:
+		return true
+	default:
+		return false
 	}
 }
 

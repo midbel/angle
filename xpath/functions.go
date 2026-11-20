@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -174,15 +175,63 @@ func callSubstringAfter(ctx *Context, curr Focus, args []Sequence) (Sequence, er
 }
 
 func callMatches(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	match, err := getStringFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	ok, err := regexp.MatchString(match, str)
+	if err != nil {
+		return nil, err
+	}
+	return Singleton(ok), nil
 }
 
 func callReplace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := getStringFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	var replace string
+	if len(args) == 3 {
+		replace, err = getStringFromSequence(args[2])
+		if err != nil {
+			return nil, err
+		}
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	str = re.ReplaceAllString(str, replace)
+	return Singleton(str), nil
 }
 
 func callTokenize(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := getStringFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	var seq Sequence
+	for _, str := range re.Split(str, -1) {
+		seq = append(seq, newAtomicItem(str))
+	}
+	return seq, nil
 }
 
 func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -260,7 +309,25 @@ func callEndsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	var (
+		str []string
+		sep string
+		err error
+	)
+	for _, it := range args[0] {
+		s, err := castToString(it.Value())
+		if err != nil {
+			return nil, err
+		}
+		str = append(str, s)
+	}
+	if len(args) == 2 {
+		sep, err = getStringFromSequence(args[1])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return Singleton(strings.Join(str, sep)), nil
 }
 
 func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {

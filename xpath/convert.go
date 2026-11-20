@@ -116,39 +116,3 @@ func isNumeric(value any) bool {
 		return false
 	}
 }
-
-func castToFloat(value any) (float64, error) {
-	if u, ok := value.(untyped); ok {
-		return castToFloat(string(u))
-	}
-	switch v := value.(type) {
-	case float64:
-		return v, nil
-	case int64:
-		return float64(v), nil
-	case string:
-		return strconv.ParseFloat(v, 64)
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	default:
-		return 0, ErrConvert
-	}
-}
-
-func castToNumber(val any) (any, bool) {
-	switch v := val.(type) {
-	case int64, float64:
-		return val, true
-	case untyped:
-		f, err := strconv.ParseFloat(string(v), 64)
-		if err == nil {
-			return f, true
-		}
-		return nil, false
-	default:
-		return nil, false
-	}
-}

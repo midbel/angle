@@ -765,7 +765,7 @@ func compute(left, right Sequence, do func(left, right float64) (float64, error)
 
 func doCompute(left, right any, do func(left, right float64) (float64, error)) (any, error) {
 	conv := func(v any) (float64, bool, error) {
-		switch x := left.(type) {
+		switch x := v.(type) {
 		case int64:
 			return float64(x), true, nil
 		case float64:

@@ -289,19 +289,86 @@ func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callSum(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	seq := args[0]
+	if seq.Empty() {
+		if len(args) > 1 {
+			return args[1], nil
+		}
+		return nil, nil
+	}
+	var sum float64
+	for i := range seq {
+		v, err := atomize(seq[i].Value())
+		if err != nil {
+			return nil, err
+		}
+		x, err := castToFloat(v)
+		if err != nil {
+			return nil, err
+		}
+		sum += x
+	}
+	return Singleton(sum), nil
 }
 
 func callAvg(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	seq := args[0]
+	if seq.Empty() {
+		return nil, nil
+	}
+	var sum float64
+	for i := range seq {
+		v, err := atomize(seq[i].Value())
+		if err != nil {
+			return nil, err
+		}
+		x, err := castToFloat(v)
+		if err != nil {
+			return nil, err
+		}
+		sum += x
+	}
+	return Singleton(sum/float64(seq.Len)), nil
 }
 
 func callMin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	seq := args[0]
+	if seq.Empty() {
+		return nil, nil
+	}
+	var res float64
+	for i := range seq {
+		v, err := atomize(seq[i].Value())
+		if err != nil {
+			return nil, err
+		}
+		x, err := castToFloat(v)
+		if err != nil {
+			return nil, err
+		}
+		res = min(res, x)
+	}
+	return Singleton(res), nil
 }
 
 func callMax(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	seq := args[0]
+	if seq.Empty() {
+		return nil, nil
+	}
+	var res float64
+	for i := range seq {
+		v, err := atomize(seq[i].Value())
+		if err != nil {
+			return nil, err
+		}
+		x, err := castToFloat(v)
+		if err != nil {
+			return nil, err
+		}
+		res = max(res, x)
+	}
+	return Singleton(res), nil
 }
 
 func callBoolean(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {

@@ -2,6 +2,7 @@ package xpath
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -36,6 +37,11 @@ func init() {
 	registerBuiltin("concat", callConcat)
 	registerBuiltin("contains", callContains)
 	registerBuiltin("substring", callSubstring)
+	registerBuiltin("matches", callMatches)
+	registerBuiltin("replace", callReplace)
+	registerBuiltin("tokenize", callTokenize)
+	registerBuiltin("substring-before", callSubstringBefore)
+	registerBuiltin("substring-after", callSubstringAfter)
 	registerBuiltin("normalize-space", callNormalizeSpace)
 	registerBuiltin("upper-case", callUppercase)
 	registerBuiltin("lower-case", callLowercase)
@@ -67,7 +73,7 @@ func init() {
 	registerBuiltin("node-name", callNodeName)
 	registerBuiltin("root", callRoot)
 	registerBuiltin("has-children", callHasChildren)
-	registerBuiltin("path", callPath)
+	// registerBuiltin("path", callPath)
 }
 
 func callString(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -105,6 +111,77 @@ func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	var (
+		offset float64
+		size   float64 = float64(len(str))
+	)
+	offset, err = getFloatFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	offset -= 1
+	if len(args) == 3 {
+		size, err = getFloatFromSequence(args[2])
+		if err != nil {
+			return nil, err
+		}
+	}
+	if offset < 0 {
+		size += offset
+		offset = 0
+	}
+	if z := len(str); int(offset+size) >= z {
+		size = float64(z) - offset
+	}
+	str = str[int(offset) : int(offset)+int(size)]
+	return Singleton(str), nil
+}
+
+func callSubstringBefore(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	cut, err := getStringFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	str, _, ok := strings.Cut(str, cut)
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(str), nil
+}
+
+func callSubstringAfter(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+	str, err := getStringFromSequence(args[0])
+	if err != nil {
+		return nil, err
+	}
+	cut, err := getStringFromSequence(args[1])
+	if err != nil {
+		return nil, err
+	}
+	_, str, ok := strings.Cut(str, cut)
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(str), nil
+}
+
+func callMatches(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+	return nil, nil
+}
+
+func callReplace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+	return nil, nil
+}
+
+func callTokenize(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return nil, nil
 }
 
@@ -294,7 +371,7 @@ func callSum(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 		if len(args) > 1 {
 			return args[1], nil
 		}
-		return nil, nil
+		return Singleton(0.0), nil
 	}
 	var sum float64
 	for i := range seq {
@@ -328,7 +405,7 @@ func callAvg(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 		}
 		sum += x
 	}
-	return Singleton(sum/float64(seq.Len)), nil
+	return Singleton(sum / float64(seq.Len())), nil
 }
 
 func callMin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
@@ -413,32 +490,128 @@ func callLast(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 }
 
 func callName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	n, ok := getNameFromNode(seq[0].Node())
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(n.QualifiedName()), nil
 }
 
 func callLocalName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	n, ok := getNameFromNode(seq[0].Node())
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(n.LocalName()), nil
 }
 
 func callNamespaceUri(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	n, ok := getNameFromNode(seq[0].Node())
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(n.URI), nil
 }
 
 func callNodeName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	n, ok := getNameFromNode(seq[0].Node())
+	if !ok {
+		return Singleton(""), nil
+	}
+	return Singleton(n.ExpandedName()), nil
 }
 
 func callRoot(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	root := traverseRoot(seq[0].Node())
+	return Singleton(root), nil
 }
 
 func callHasChildren(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
+	if len(args) == 0 {
+		if curr.Item == nil {
+			return nil, ErrContext
+		}
+		args = append(args, Singleton(curr.Item))
+	}
+	seq := args[0]
+	if seq.Len() > 1 {
+		return nil, ErrSingleton
+	}
+	if seq[0].Atomic() {
+		return nil, fmt.Errorf("node expected")
+	}
+	children := traverseChild(seq[0].Node())
+	return Singleton(len(children) > 0), nil
 }
 
-func callPath(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return nil, nil
-}
+// func callPath(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+// 	return nil, nil
+// }
 
 func registerBuiltin(name string, do BuiltinFunc) {
 	qn := funcName(name)
@@ -478,6 +651,21 @@ func numberSeq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, erro
 	return do(val)
 }
 
+func castToString(val any) (string, error) {
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case float64:
+		return strconv.FormatFloat(v, 'g', -1, 64), nil
+	case untyped:
+		return string(v), nil
+	default:
+		return "", ErrType
+	}
+}
+
 func castToNumber(val any) (any, bool) {
 	switch v := val.(type) {
 	case int64, float64:
@@ -491,6 +679,27 @@ func castToNumber(val any) (any, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func getStringFromSequence(seq Sequence) (string, error) {
+	if seq.Empty() {
+		return "", nil
+	}
+	if seq.Len() > 1 {
+		return "", ErrSingleton
+	}
+	return castToString(seq[0].Value())
+}
+
+func getFloatFromSequence(seq Sequence) (float64, error) {
+	if seq.Len() != 1 {
+		return 0, ErrSingleton
+	}
+	val, err := atomize(seq[0].Value())
+	if err != nil {
+		return 0, err
+	}
+	return castToFloat(val)
 }
 
 func castToFloat(val any) (float64, error) {

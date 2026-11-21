@@ -252,19 +252,8 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		var (
-			seq   Sequence
-			attrs = traverseAttributes(node)
-		)
-		for i, a := range attrs {
-			it := newNodeItem(a)
-			res, err := eval(expr.Expr, curr.Sub(it, len(attrs), i+1), ctx)
-			if err != nil {
-				return nil, err
-			}
-			seq = append(seq, res...)
-		}
-		return seq, nil
+		attrs := traverseAttributes(node)
+		return createSequenceFromNodes(attrs, expr.Expr, curr, ctx)
 	case ParentAxis:
 		n, err := currentNode(curr.Item)
 		if err != nil {
@@ -300,6 +289,12 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 		nodes := traverseAncestors(node, expr.axis == AncestorOrSelfAxis)
 		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case FollowingAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		nodes := traverseFollowing(node)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case FollowingSiblingAxis:
 		node, err := currentNode(curr.Item)
 		if err != nil {
@@ -308,6 +303,12 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 		nodes := traverseFollowingSiblings(node)
 		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case PrecedingAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		nodes := traversePreceding(node)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case PrecedingSiblingAxis:
 		node, err := currentNode(curr.Item)
 		if err != nil {
@@ -881,12 +882,33 @@ func createSequenceFromNodes(nodes []xml.Node, expr Expr, curr Focus, ctx *Conte
 	return seq, nil
 }
 
-func traverseAttributes(node xml.Node) []*xml.Attribute {
+func traverseAttributes(node xml.Node) []xml.Node {
 	el, ok := node.(*xml.Element)
 	if !ok {
 		return nil
 	}
-	return el.Attributes
+	nodes := make([]xml.Node, 0, len(el.Attributes))
+	for i := range el.Attributes {
+		nodes = append(nodes, el.Attributes[i])
+	}
+	return nodes
+}
+
+func traversePreceding(node xml.Node) []xml.Node {
+    var (
+    	list = traversePrecedingSiblings(node)
+    	result []xml.Node
+    )
+
+    for i := range list {
+        res := traverseDeepAndSelf(list[i], 0)
+        result = append(result, res...)
+    }
+    if parent := node.Parent(); parent != nil {
+        res := traversePreceding(parent)
+        result = append(result, res...)
+    }
+    return result
 }
 
 func traversePrecedingSiblings(node xml.Node) []xml.Node {
@@ -906,6 +928,22 @@ func traversePrecedingSiblings(node xml.Node) []xml.Node {
 	res := slices.Clone(children[:node.Position()])
 	slices.Reverse(res)
 	return res
+}
+
+func traverseFollowing(node xml.Node) ([]xml.Node) {
+	var (
+		list = traverseFollowingSiblings(node)	
+		result []xml.Node
+	)
+	for i := range list {
+		res := traverseDeepAndSelf(list[i], 0)
+		result = append(result, res...)
+	}
+	if parent := node.Parent(); parent != nil {
+		res := traverseFollowing(parent)
+		result = append(result, res...)
+	}
+	return result
 }
 
 func traverseFollowingSiblings(node xml.Node) []xml.Node {

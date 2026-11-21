@@ -41,6 +41,10 @@ func NewContext() *Context {
 	}
 }
 
+func (c *Context) ResolveVar(ident string) (any, error) {
+	return c.vars.Resolve(ident)
+}
+
 func (c *Context) RegisterVar(ident string, value any) {
 	c.vars.Define(ident, value)
 }
@@ -157,6 +161,20 @@ func (s Sequence) Singleton() bool {
 
 func (s Sequence) Len() int {
 	return len(s)
+}
+
+func (s Sequence) First() Item {
+	if s.Empty() {
+		return nil
+	}
+	return s[0]
+}
+
+func (s Sequence) Last() Item {
+	if s.Empty() {
+		return nil
+	}
+	return s[s.Len()-1]
 }
 
 type nodeItem struct {

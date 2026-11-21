@@ -314,8 +314,24 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 			seq = append(seq, res...)
 		}
 		return seq, nil
-	case AncestorAxis:
-	case AncestorOrSelfAxis:
+	case AncestorAxis, AncestorOrSelfAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			nodes = traverseAncestors(node, expr.axis == AncestorOrSelfAxis)
+			seq   Sequence
+		)
+		for i := range nodes {
+			it := newNodeItem(nodes[i])
+			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
+			if err != nil {
+				return nil, err
+			}
+			seq = append(seq, res...)
+		}
+		return seq, nil
 	case FollowingAxis:
 	case FollowingSiblingAxis:
 	case PrecedingAxis:
@@ -879,6 +895,22 @@ func traverseAttributes(node xml.Node) []*xml.Attribute {
 		return nil
 	}
 	return el.Attributes
+}
+
+func traverseAncestors(node xml.Node, self bool) []xml.Node {
+	var list []xml.Node
+	if self {
+		list = append(list, node)
+	}
+	for {
+		tmp := node.Parent()
+		if tmp == nil {
+			break
+		}
+		list = append(list, tmp)
+		node = tmp
+	}
+	return list
 }
 
 func traverseRoot(node xml.Node) xml.Node {

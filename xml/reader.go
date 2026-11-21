@@ -71,6 +71,7 @@ func (b *Decoder) OnStartElement(el Element, selfClosed bool) error {
 		b.doc.Children = append(b.doc.Children, &el)
 	} else {
 		el.parent = b.stack[n-1]
+		el.position = len(b.stack[n-1].Children)
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &el)
 	}
 	if !selfClosed {
@@ -93,6 +94,7 @@ func (b *Decoder) OnText(t Text) error {
 		b.doc.Children = append(b.doc.Children, &t)
 	} else {
 		t.parent = b.stack[n-1]
+		t.position = len(b.stack[n-1].Children)
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &t)
 	}
 	return nil
@@ -103,6 +105,7 @@ func (b *Decoder) OnComment(c Comment) error {
 		b.doc.Children = append(b.doc.Children, &c)
 	} else {
 		c.parent = b.stack[n-1]
+		c.position = len(b.stack[n-1].Children)
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &c)
 	}
 	return nil
@@ -113,6 +116,7 @@ func (b *Decoder) OnPI(p PI) error {
 		b.doc.Children = append(b.doc.Children, &p)
 	} else {
 		p.parent = b.stack[n-1]
+		p.position = len(b.stack[n-1].Children)
 		b.stack[n-1].Children = append(b.stack[n-1].Children, &p)
 	}
 	return nil

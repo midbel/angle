@@ -20,6 +20,7 @@ const (
 type Node interface {
 	Type() NodeType
 	Parent() Node
+	Position() int
 	Content() string
 }
 
@@ -139,6 +140,10 @@ func (*Document) Parent() Node {
 	return nil
 }
 
+func (*Document) Position() int {
+	return 0
+}
+
 func (*Document) Type() NodeType {
 	return DocumentNode
 }
@@ -150,6 +155,7 @@ type Element struct {
 	Children   []Node
 
 	parent Node
+	position int
 }
 
 func NewElement(name Name) *Element {
@@ -164,6 +170,13 @@ func (e *Element) Leaf() bool {
 
 func (e *Element) Parent() Node {
 	return e.parent
+}
+
+func (e *Element) Position() int {
+	if e.parent == nil {
+		return 0
+	}
+	return e.position
 }
 
 func (e *Element) Content() string {
@@ -232,6 +245,7 @@ func (*Element) Type() NodeType {
 type Attribute struct {
 	Name
 	Value string
+	position int
 }
 
 func NewAttribute(name Name, value string) *Attribute {
@@ -241,21 +255,26 @@ func NewAttribute(name Name, value string) *Attribute {
 	}
 }
 
-func (a Attribute) Parent() Node {
+func (a *Attribute) Parent() Node {
 	return nil
 }
 
-func (a Attribute) Content() string {
+func (a *Attribute) Position() int {
+	return a.position
+}
+
+func (a *Attribute) Content() string {
 	return a.Value
 }
 
-func (Attribute) Type() NodeType {
+func (*Attribute) Type() NodeType {
 	return AttrNode
 }
 
 type Text struct {
 	Value  string
 	parent Node
+	position int
 }
 
 func NewText(text string) *Text {
@@ -266,6 +285,13 @@ func NewText(text string) *Text {
 
 func (t *Text) Parent() Node {
 	return t.parent
+}
+
+func (t *Text) Position() int {
+	if t.parent == nil {
+		return 0
+	}
+	return t.position
 }
 
 func (t *Text) Content() string {
@@ -279,6 +305,7 @@ func (*Text) Type() NodeType {
 type Comment struct {
 	Value  string
 	parent Node
+	position int
 }
 
 func NewComment(text string) *Comment {
@@ -289,6 +316,13 @@ func NewComment(text string) *Comment {
 
 func (c *Comment) Parent() Node {
 	return c.parent
+}
+
+func (c *Comment) Position() int {
+	if c.parent == nil {
+		return 0
+	}
+	return c.position
 }
 
 func (c *Comment) Content() string {
@@ -303,6 +337,7 @@ type PI struct {
 	Name
 	Data   string
 	parent Node
+	position int
 }
 
 func NewPI(name Name, data string) *PI {
@@ -314,6 +349,13 @@ func NewPI(name Name, data string) *PI {
 
 func (p *PI) Parent() Node {
 	return p.parent
+}
+
+func (p *PI) Position() int {
+	if p.parent == nil {
+		return 0
+	}
+	return p.position
 }
 
 func (p *PI) Content() string {

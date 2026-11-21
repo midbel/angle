@@ -59,22 +59,14 @@ func (a Arguments) First(i int) Item {
 	if i >= len(a) || i < 0 {
 		return nil
 	}
-	seq := a[i]
-	if seq.Empty() {
-		return nil
-	}
-	return seq[0]
+	return a[i].First()
 }
 
 func (a Arguments) Last(i int) Item {
 	if i >= len(a) || i < 0 {
 		return nil
 	}
-	seq := a[i]
-	if seq.Empty() {
-		return nil
-	}
-	return seq[seq.Len()-1]
+	return a[i].Last()
 }
 
 type BuiltinFunc func(*Context, Focus, Arguments) (Sequence, error)
@@ -396,7 +388,7 @@ func callNumber(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	val, err := atomize(seq[0].Value())
+	val, err := atomize(seq.First().Value())
 	if err != nil {
 		return nil, err
 	}
@@ -726,7 +718,7 @@ func stringSeq(seq Sequence) (string, error) {
 	if seq.Empty() {
 		return "", nil
 	}
-	return stringify(seq[0])
+	return stringify(seq.First())
 }
 
 func numberSeq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, error) {
@@ -736,7 +728,7 @@ func numberSeq(seq Sequence, do func(val any) (Sequence, error)) (Sequence, erro
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	val, err := atomize(seq[0].Value())
+	val, err := atomize(seq.First().Value())
 	if err != nil {
 		return nil, err
 	}
@@ -784,14 +776,14 @@ func getStringFromSequence(seq Sequence) (string, error) {
 	if seq.Len() > 1 {
 		return "", ErrSingleton
 	}
-	return castToString(seq[0].Value())
+	return castToString(seq.First().Value())
 }
 
 func getFloatFromSequence(seq Sequence) (float64, error) {
 	if seq.Len() != 1 {
 		return 0, ErrSingleton
 	}
-	val, err := atomize(seq[0].Value())
+	val, err := atomize(seq.First().Value())
 	if err != nil {
 		return 0, err
 	}

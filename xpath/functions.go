@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -88,6 +89,7 @@ var builtins = map[qname]Builtin{}
 func init() {
 	registerBuiltin("string", 0, 1, true, callString)
 	registerBuiltin("concat", 2, -1, false, callConcat)
+	registerBuiltin("compare", 2, 3, false, callCompare)
 	registerBuiltin("contains", 2, 2, false, callContains)
 	registerBuiltin("substring", 2, 3, false, callSubstring)
 	registerBuiltin("matches", 2, 3, false, callMatches)
@@ -115,8 +117,6 @@ func init() {
 	registerBuiltin("true", 0, 0, false, callTrue)
 	registerBuiltin("false", 0, 0, false, callFalse)
 	registerBuiltin("not", 1, 1, false, callNot)
-	registerBuiltin("exists", 1, 1, false, callExists)
-	registerBuiltin("empty", 1, 1, false, callEmpty)
 	registerBuiltin("count", 1, 1, false, callCount)
 	registerBuiltin("position", 0, 0, false, callPosition)
 	registerBuiltin("last", 0, 0, false, callLast)
@@ -126,11 +126,33 @@ func init() {
 	registerBuiltin("node-name", 0, 1, true, callNodeName)
 	registerBuiltin("root", 0, 1, true, callRoot)
 	registerBuiltin("has-children", 0, 1, true, callHasChildren)
+	registerBuiltin("exists", 1, 1, false, callExists)
+	registerBuiltin("empty", 1, 1, false, callEmpty)
+	registerBuiltin("tail", 1, 1, false, callTail)
+	registerBuiltin("head", 1, 1, false, callHead)
+	registerBuiltin("reverse", 1, 1, false, callReverse)
+	registerBuiltin("zero-or-one", 1, 1, false, callZeroOrOne)
+	registerBuiltin("one-or-more", 1, 1, false, callOneOrMore)
+	registerBuiltin("exactly-one", 1, 1, false, callExactlyOne)
+	registerBuiltin("distinct-values", 1, 2, false, callDistinctValues)
 }
 
 func callString(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	str, err := stringSeq(args.Sequence(0))
 	return Singleton(str), err
+}
+
+func callCompare(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	fst, err := stringSeq(args.Sequence(0))
+	if err != nil {
+		return nil, err
+	}
+	snd, err := stringSeq(args.Sequence(1))
+	if err != nil {
+		return nil, err
+	}
+	res := strings.Compare(fst, snd)
+	return Singleton(int64(res)), nil
 }
 
 func callConcat(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
@@ -569,16 +591,6 @@ func callNot(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	return Singleton(!ok), err
 }
 
-func callExists(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
-	ok := !args.Sequence(0).Empty()
-	return Singleton(ok), nil
-}
-
-func callEmpty(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
-	ok := args.Sequence(0).Empty()
-	return Singleton(ok), nil
-}
-
 func callCount(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	n := args.Sequence(0).Len()
 	return Singleton(int64(n)), nil
@@ -698,6 +710,73 @@ func callHasChildren(ctx *Context, curr Focus, args Arguments) (Sequence, error)
 	}
 	children := traverseChild(node)
 	return Singleton(len(children) > 0), nil
+}
+
+func callExists(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok := !args.Sequence(0).Empty()
+	return Singleton(ok), nil
+}
+
+func callEmpty(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok := args.Sequence(0).Empty()
+	return Singleton(ok), nil
+}
+
+func callTail(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if seq.Len() <= 1 {
+		return nil, nil
+	}
+	var res Sequence
+	for i := range seq[1:] {
+		res = append(res, seq[i])
+	}
+	return res, nil
+}
+
+func callHead(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if seq.Empty() {
+		return nil, nil
+	}
+	return Singleton(seq.First()), nil
+}
+
+func callReverse(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if seq.Empty() {
+		return nil, nil
+	}
+	slices.Reverse(seq)
+	return seq, nil
+}
+
+func callZeroOrOne(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if seq.Len() > 1 {
+		return nil, fmt.Errorf("empty/singleton sequence expected")
+	}
+	return seq, nil
+}
+
+func callOneOrMore(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if seq.Empty() {
+		return nil, fmt.Errorf("non empty sequence expected")
+	}
+	return seq, nil
+}
+
+func callExactlyOne(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
+	if !seq.Singleton() {
+		return nil, ErrSingleton
+	}
+	return seq, nil
+}
+
+func callDistinctValues(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return nil, nil
 }
 
 func registerBuiltin(name string, minArgs, maxArgs int, useCtxItem bool, do BuiltinFunc) {

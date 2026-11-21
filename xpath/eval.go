@@ -895,20 +895,20 @@ func traverseAttributes(node xml.Node) []xml.Node {
 }
 
 func traversePreceding(node xml.Node) []xml.Node {
-    var (
-    	list = traversePrecedingSiblings(node)
-    	result []xml.Node
-    )
+	var (
+		list   = traversePrecedingSiblings(node)
+		result []xml.Node
+	)
 
-    for i := range list {
-        res := traverseDeepAndSelf(list[i], 0)
-        result = append(result, res...)
-    }
-    if parent := node.Parent(); parent != nil {
-        res := traversePreceding(parent)
-        result = append(result, res...)
-    }
-    return result
+	for i := range list {
+		res := traverseDeepAndSelf(list[i], 0)
+		result = append(result, res...)
+	}
+	if parent := node.Parent(); parent != nil {
+		res := traversePreceding(parent)
+		result = append(result, res...)
+	}
+	return result
 }
 
 func traversePrecedingSiblings(node xml.Node) []xml.Node {
@@ -930,9 +930,9 @@ func traversePrecedingSiblings(node xml.Node) []xml.Node {
 	return res
 }
 
-func traverseFollowing(node xml.Node) ([]xml.Node) {
+func traverseFollowing(node xml.Node) []xml.Node {
 	var (
-		list = traverseFollowingSiblings(node)	
+		list   = traverseFollowingSiblings(node)
 		result []xml.Node
 	)
 	for i := range list {

@@ -55,6 +55,8 @@ func NewParser(r io.Reader) *Parser {
 		Concat: p.parseBinary,
 		And:    p.parseBinary,
 		Or:     p.parseBinary,
+		After:  p.parseBinary,
+		Before: p.parseBinary,
 		Comma:  p.parseList,
 		Pipe:   p.parseUnion,
 	}
@@ -614,6 +616,8 @@ func (p *Parser) powerOf() int {
 			kind = Pipe
 		case kwIntersect, kwExcept:
 			return powSet
+		case kwIs:
+			return powCmp
 		default:
 		}
 	}

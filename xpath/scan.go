@@ -209,12 +209,18 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		if k := s.peek(); k == '=' {
 			s.read()
 			tok.Type = Le
+		} else if k == '<' {
+			s.read()
+			tok.Type = Before
 		}
 	case '>':
 		tok.Type = Gt
 		if k := s.peek(); k == '=' {
 			s.read()
 			tok.Type = Ge
+		} else if k == '>' {
+			s.read()
+			tok.Type = After
 		}
 	default:
 	}

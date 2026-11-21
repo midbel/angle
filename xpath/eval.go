@@ -537,6 +537,8 @@ func evalComparison(expr binary, curr Focus, ctx *Context) (Sequence, error) {
 		value, err = isGt(seq1, seq2)
 	case Ge:
 		value, err = isGe(seq1, seq2)
+	case Before:
+	case After:
 	default:
 		err = fmt.Errorf("unsupported comparison operator")
 	}

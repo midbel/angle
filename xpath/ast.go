@@ -307,6 +307,46 @@ func (u unary) String() string {
 
 func (unary) expr() {}
 
+type some struct{}
+
+func (s some) String() string {
+	return "some"
+}
+
+func (some) expr() {}
+
+type every struct{}
+
+func (e every) String() string {
+	return "every"
+}
+
+func (every) expr() {}
+
+type let struct{}
+
+func (e let) String() string {
+	return "let"
+}
+
+func (let) expr() {}
+
+type conditional struct{}
+
+func (c conditional) String() string {
+	return "if"
+}
+
+func (conditional) expr() {}
+
+type loop struct{}
+
+func (o loop) String() string {
+	return "for"
+}
+
+func (loop) expr() {}
+
 func axisStep(axis Axis, expr Expr) Expr {
 	return step{
 		axis: axis,

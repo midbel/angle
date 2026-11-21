@@ -18,6 +18,7 @@ const (
 	kwThen      = "then"
 	kwElse      = "else"
 	kwReturn    = "return"
+	kwIs        = "is"
 )
 
 type Token struct {
@@ -93,6 +94,10 @@ func (t Token) String() string {
 		return "<and>"
 	case Or:
 		return "<or>"
+	case Before:
+		return "<before>"
+	case After:
+		return "<after>"
 	case Assign:
 		return "<assignment>"
 	case Invalid:
@@ -136,6 +141,8 @@ const (
 	Ge
 	And
 	Or
+	After
+	Before
 	Assign
 	Invalid
 )
@@ -172,6 +179,8 @@ var bindings = map[rune]int{
 	Le:     powCmp,
 	Gt:     powCmp,
 	Ge:     powCmp,
+	Before: powCmp,
+	After:  powCmp,
 	And:    powAnd,
 	Or:     powOr,
 	Pipe:   powUnion,

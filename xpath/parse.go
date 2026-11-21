@@ -342,7 +342,7 @@ func (p *Parser) parseList(left Expr) (Expr, error) {
 func (p *Parser) parseExcept(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
-	for p.is(Pipe) {
+	for p.is(Name) && p.currentLiteral() == kwExcept {
 		p.next()
 		e, err := p.startExpr(powSet)
 		if err != nil {
@@ -356,7 +356,7 @@ func (p *Parser) parseExcept(left Expr) (Expr, error) {
 func (p *Parser) parseIntersect(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
-	for p.is(Pipe) {
+	for p.is(Name) && p.currentLiteral() == kwIntersect {
 		p.next()
 		e, err := p.startExpr(powSet)
 		if err != nil {
@@ -370,7 +370,7 @@ func (p *Parser) parseIntersect(left Expr) (Expr, error) {
 func (p *Parser) parseUnion(left Expr) (Expr, error) {
 	var expr []Expr
 	expr = append(expr, left)
-	for p.is(Pipe) {
+	for p.is(Pipe) || (p.is(Name) && p.currentLiteral() == kwUnion) {
 		p.next()
 		e, err := p.startExpr(powUnion)
 		if err != nil {

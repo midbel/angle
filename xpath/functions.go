@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/midbel/angle/xml"
 )
 
 var (
@@ -18,7 +20,64 @@ var (
 	ErrType      = errors.New("invalid type")
 )
 
-type BuiltinFunc func(*Context, Focus, []Sequence) (Sequence, error)
+type Arguments []Sequence
+
+func (a Arguments) Len() int {
+	return len(a)
+}
+
+func (a Arguments) Sequence(i int) Sequence {
+	if i >= len(a) || i < 0 {
+		return nil
+	}
+	return a[i]
+}
+
+func (a Arguments) Node(i int) xml.Node {
+	v := a.First(i)
+	if v == nil {
+		return nil
+	}
+	if v.Atomic() {
+		return nil
+	}
+	return v.Node()
+}
+
+func (a Arguments) Atomic(i int) Item {
+	v := a.First(i)
+	if v == nil {
+		return nil
+	}
+	if !v.Atomic() {
+		return nil
+	}
+	return v
+}
+
+func (a Arguments) First(i int) Item {
+	if i >= len(a) || i < 0 {
+		return nil
+	}
+	seq := a[i]
+	if seq.Empty() {
+		return nil
+	}
+	return seq[0]
+}
+
+func (a Arguments) Last(i int) Item {
+	if i >= len(a) || i < 0 {
+		return nil
+	}
+	seq := a[i]
+	if seq.Empty() {
+		return nil
+	}
+	return seq[seq.Len()-1]
+}
+
+type BuiltinFunc func(*Context, Focus, Arguments) (Sequence, error)
 
 type Builtin struct {
 	Name       string
@@ -35,62 +94,57 @@ func funcName(name string) qname {
 var builtins = map[qname]Builtin{}
 
 func init() {
-	registerBuiltin("string", callString)
-	registerBuiltin("concat", callConcat)
-	registerBuiltin("contains", callContains)
-	registerBuiltin("substring", callSubstring)
-	registerBuiltin("matches", callMatches)
-	registerBuiltin("replace", callReplace)
-	registerBuiltin("tokenize", callTokenize)
-	registerBuiltin("substring-before", callSubstringBefore)
-	registerBuiltin("substring-after", callSubstringAfter)
-	registerBuiltin("normalize-space", callNormalizeSpace)
-	registerBuiltin("upper-case", callUppercase)
-	registerBuiltin("lower-case", callLowercase)
-	registerBuiltin("starts-with", callStartsWith)
-	registerBuiltin("ends-with", callEndsWith)
-	registerBuiltin("string-join", callStringJoin)
-	registerBuiltin("string-length", callStringLength)
-	registerBuiltin("number", callNumber)
-	registerBuiltin("abs", callAbs)
-	registerBuiltin("floor", callFloor)
-	registerBuiltin("ceiling", callCeiling)
-	registerBuiltin("round", callRound)
-	registerBuiltin("sum", callSum)
-	registerBuiltin("avg", callAvg)
-	registerBuiltin("max", callMax)
-	registerBuiltin("min", callMin)
-	registerBuiltin("boolean", callBoolean)
-	registerBuiltin("true", callTrue)
-	registerBuiltin("false", callFalse)
-	registerBuiltin("not", callNot)
-	registerBuiltin("exists", callExists)
-	registerBuiltin("empty", callEmpty)
-	registerBuiltin("count", callCount)
-	registerBuiltin("position", callPosition)
-	registerBuiltin("last", callLast)
-	registerBuiltin("name", callName)
-	registerBuiltin("local-name", callLocalName)
-	registerBuiltin("namespace-uri", callNamespaceUri)
-	registerBuiltin("node-name", callNodeName)
-	registerBuiltin("root", callRoot)
-	registerBuiltin("has-children", callHasChildren)
-	// registerBuiltin("path", callPath)
+	registerBuiltin("string", 0, 1, true, callString)
+	registerBuiltin("concat", 2, -1, false, callConcat)
+	registerBuiltin("contains", 2, 2, false, callContains)
+	registerBuiltin("substring", 2, 3, false, callSubstring)
+	registerBuiltin("matches", 2, 3, false, callMatches)
+	registerBuiltin("replace", 3, 4, false, callReplace)
+	registerBuiltin("tokenize", 2, 3, false, callTokenize)
+	registerBuiltin("substring-before", 2, 2, false, callSubstringBefore)
+	registerBuiltin("substring-after", 2, 2, false, callSubstringAfter)
+	registerBuiltin("normalize-space", 0, 1, true, callNormalizeSpace)
+	registerBuiltin("upper-case", 1, 1, false, callUppercase)
+	registerBuiltin("lower-case", 1, 1, false, callLowercase)
+	registerBuiltin("starts-with", 2, 2, false, callStartsWith)
+	registerBuiltin("ends-with", 2, 2, false, callEndsWith)
+	registerBuiltin("string-join", 1, 2, false, callStringJoin)
+	registerBuiltin("string-length", 0, 1, true, callStringLength)
+	registerBuiltin("number", 0, 1, true, callNumber)
+	registerBuiltin("abs", 1, 1, false, callAbs)
+	registerBuiltin("floor", 1, 1, false, callFloor)
+	registerBuiltin("ceiling", 1, 1, false, callCeiling)
+	registerBuiltin("round", 1, 2, false, callRound)
+	registerBuiltin("sum", 1, 2, false, callSum)
+	registerBuiltin("avg", 1, 1, false, callAvg)
+	registerBuiltin("max", 1, 1, false, callMax)
+	registerBuiltin("min", 1, 1, false, callMin)
+	registerBuiltin("boolean", 1, 1, false, callBoolean)
+	registerBuiltin("true", 0, 0, false, callTrue)
+	registerBuiltin("false", 0, 0, false, callFalse)
+	registerBuiltin("not", 1, 1, false, callNot)
+	registerBuiltin("exists", 1, 1, false, callExists)
+	registerBuiltin("empty", 1, 1, false, callEmpty)
+	registerBuiltin("count", 1, 1, false, callCount)
+	registerBuiltin("position", 0, 0, false, callPosition)
+	registerBuiltin("last", 0, 0, false, callLast)
+	registerBuiltin("name", 0, 1, true, callName)
+	registerBuiltin("local-name", 0, 1, true, callLocalName)
+	registerBuiltin("namespace-uri", 0, 1, true, callNamespaceUri)
+	registerBuiltin("node-name", 0, 1, true, callNodeName)
+	registerBuiltin("root", 0, 1, true, callRoot)
+	registerBuiltin("has-children", 0, 1, true, callHasChildren)
 }
 
-func callString(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
-	str, err := stringSeq(seq)
+func callString(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	return Singleton(str), err
 }
 
-func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callConcat(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	var res string
-	for i := range args {
-		str, err := stringSeq(args[i])
+	for i := range args.Len() {
+		str, err := stringSeq(args.Sequence(i))
 		if err != nil {
 			return nil, err
 		}
@@ -99,12 +153,12 @@ func callConcat(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(res), nil
 }
 
-func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := stringSeq(args[0])
+func callContains(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	sub, err := stringSeq(args[1])
+	sub, err := stringSeq(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +166,8 @@ func callContains(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(ok), nil
 }
 
-func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callSubstring(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
@@ -121,13 +175,13 @@ func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 		offset float64
 		size   float64 = float64(len(str))
 	)
-	offset, err = getFloatFromSequence(args[1])
+	offset, err = getFloatFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
 	offset -= 1
-	if len(args) == 3 {
-		size, err = getFloatFromSequence(args[2])
+	if seq := args.Sequence(2); seq.Empty() {
+		size, err = getFloatFromSequence(seq)
 		if err != nil {
 			return nil, err
 		}
@@ -143,12 +197,12 @@ func callSubstring(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 	return Singleton(str), nil
 }
 
-func callSubstringBefore(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callSubstringBefore(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	cut, err := getStringFromSequence(args[1])
+	cut, err := getStringFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -159,12 +213,12 @@ func callSubstringBefore(ctx *Context, curr Focus, args []Sequence) (Sequence, e
 	return Singleton(str), nil
 }
 
-func callSubstringAfter(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callSubstringAfter(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	cut, err := getStringFromSequence(args[1])
+	cut, err := getStringFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -175,12 +229,12 @@ func callSubstringAfter(ctx *Context, curr Focus, args []Sequence) (Sequence, er
 	return Singleton(str), nil
 }
 
-func callMatches(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callMatches(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	match, err := getStringFromSequence(args[1])
+	match, err := getStringFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -191,18 +245,18 @@ func callMatches(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(ok), nil
 }
 
-func callReplace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callReplace(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	pattern, err := getStringFromSequence(args[1])
+	pattern, err := getStringFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
 	var replace string
-	if len(args) == 3 {
-		replace, err = getStringFromSequence(args[2])
+	if seq := args.Sequence(2); !seq.Empty() {
+		replace, err = getStringFromSequence(seq)
 		if err != nil {
 			return nil, err
 		}
@@ -215,12 +269,12 @@ func callReplace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(str), nil
 }
 
-func callTokenize(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := getStringFromSequence(args[0])
+func callTokenize(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := getStringFromSequence(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	pattern, err := getStringFromSequence(args[1])
+	pattern, err := getStringFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -235,19 +289,12 @@ func callTokenize(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return seq, nil
 }
 
-func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
+func callNormalizeSpace(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	var (
 		res  []rune
 		prev rune
-		seq  = args[0]
 	)
-	str, err := stringSeq(seq)
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +312,8 @@ func callNormalizeSpace(ctx *Context, curr Focus, args []Sequence) (Sequence, er
 	return Singleton(string(res)), nil
 }
 
-func callUppercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := stringSeq(args[0])
+func callUppercase(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
@@ -274,8 +321,8 @@ func callUppercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 	return Singleton(str), nil
 }
 
-func callLowercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := stringSeq(args[0])
+func callLowercase(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
@@ -283,12 +330,12 @@ func callLowercase(ctx *Context, curr Focus, args []Sequence) (Sequence, error) 
 	return Singleton(str), nil
 }
 
-func callStartsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := stringSeq(args[0])
+func callStartsWith(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	prefix, err := stringSeq(args[1])
+	prefix, err := stringSeq(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -296,12 +343,12 @@ func callStartsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error)
 	return Singleton(ok), nil
 }
 
-func callEndsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	str, err := stringSeq(args[0])
+func callEndsWith(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
-	suffix, err := stringSeq(args[1])
+	suffix, err := stringSeq(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
@@ -309,21 +356,21 @@ func callEndsWith(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(ok), nil
 }
 
-func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callStringJoin(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	var (
 		str []string
 		sep string
 		err error
 	)
-	for _, it := range args[0] {
+	for _, it := range args.Sequence(0) {
 		s, err := castToString(it.Value())
 		if err != nil {
 			return nil, err
 		}
 		str = append(str, s)
 	}
-	if len(args) == 2 {
-		sep, err = getStringFromSequence(args[1])
+	if seq := args.Sequence(1); !seq.Empty() {
+		sep, err = getStringFromSequence(seq)
 		if err != nil {
 			return nil, err
 		}
@@ -331,15 +378,8 @@ func callStringJoin(ctx *Context, curr Focus, args []Sequence) (Sequence, error)
 	return Singleton(strings.Join(str, sep)), nil
 }
 
-func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
-	str, err := stringSeq(seq)
+func callStringLength(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	str, err := stringSeq(args.Sequence(0))
 	if err != nil {
 		return nil, err
 	}
@@ -347,14 +387,8 @@ func callStringLength(ctx *Context, curr Focus, args []Sequence) (Sequence, erro
 	return Singleton(int64(n)), nil
 }
 
-func callNumber(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callNumber(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Empty() {
 		return Singleton(math.NaN()), nil
 	}
@@ -372,8 +406,8 @@ func callNumber(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(res), nil
 }
 
-func callAbs(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return numberSeq(args[0], func(val any) (Sequence, error) {
+func callAbs(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return numberSeq(args.Sequence(0), func(val any) (Sequence, error) {
 		switch v := val.(type) {
 		case int64:
 			if v == math.MinInt64 {
@@ -391,8 +425,8 @@ func callAbs(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	})
 }
 
-func callFloor(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return numberSeq(args[0], func(val any) (Sequence, error) {
+func callFloor(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return numberSeq(args.Sequence(0), func(val any) (Sequence, error) {
 		switch v := val.(type) {
 		case int64:
 			return Singleton(v), nil
@@ -404,8 +438,8 @@ func callFloor(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	})
 }
 
-func callCeiling(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return numberSeq(args[0], func(val any) (Sequence, error) {
+func callCeiling(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return numberSeq(args.Sequence(0), func(val any) (Sequence, error) {
 		switch v := val.(type) {
 		case int64:
 			return Singleton(v), nil
@@ -417,8 +451,8 @@ func callCeiling(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	})
 }
 
-func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	return numberSeq(args[0], func(val any) (Sequence, error) {
+func callRound(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return numberSeq(args.Sequence(0), func(val any) (Sequence, error) {
 		switch v := val.(type) {
 		case int64:
 			return Singleton(v), nil
@@ -433,8 +467,8 @@ func callRound(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	})
 }
 
-func callSum(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	seq := args[0]
+func callSum(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Empty() {
 		if len(args) > 1 {
 			return args[1], nil
@@ -456,8 +490,8 @@ func callSum(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(sum), nil
 }
 
-func callAvg(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	seq := args[0]
+func callAvg(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Empty() {
 		return nil, nil
 	}
@@ -476,8 +510,8 @@ func callAvg(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(sum / float64(seq.Len())), nil
 }
 
-func callMin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	seq := args[0]
+func callMin(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Empty() {
 		return nil, nil
 	}
@@ -496,8 +530,8 @@ func callMin(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(res), nil
 }
 
-func callMax(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	seq := args[0]
+func callMax(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Empty() {
 		return nil, nil
 	}
@@ -516,172 +550,142 @@ func callMax(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
 	return Singleton(res), nil
 }
 
-func callBoolean(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	ok, err := effectiveBooleanValue(args[0])
+func callBoolean(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok, err := effectiveBooleanValue(args.Sequence(0))
 	return Singleton(ok), err
 }
 
-func callTrue(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callTrue(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	return Singleton(true), nil
 }
 
-func callFalse(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callFalse(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	return Singleton(false), nil
 }
 
-func callNot(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	ok, err := effectiveBooleanValue(args[0])
+func callNot(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok, err := effectiveBooleanValue(args.Sequence(0))
 	return Singleton(!ok), err
 }
 
-func callExists(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	ok := !args[0].Empty()
+func callExists(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok := !args.Sequence(0).Empty()
 	return Singleton(ok), nil
 }
 
-func callEmpty(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	ok := args[0].Empty()
+func callEmpty(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	ok := args.Sequence(0).Empty()
 	return Singleton(ok), nil
 }
 
-func callCount(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	n := args[0].Len()
+func callCount(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	n := args.Sequence(0).Len()
 	return Singleton(int64(n)), nil
 }
 
-func callPosition(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callPosition(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	return Singleton(int64(curr.Index)), nil
 }
 
-func callLast(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+func callLast(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	return Singleton(int64(curr.Size)), nil
 }
 
-func callName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	n, ok := getNameFromNode(seq[0].Node())
+	n, ok := getNameFromNode(node)
 	if !ok {
 		return Singleton(""), nil
 	}
 	return Singleton(n.QualifiedName()), nil
 }
 
-func callLocalName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callLocalName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	n, ok := getNameFromNode(seq[0].Node())
+	n, ok := getNameFromNode(node)
 	if !ok {
 		return Singleton(""), nil
 	}
 	return Singleton(n.LocalName()), nil
 }
 
-func callNamespaceUri(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callNamespaceUri(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	n, ok := getNameFromNode(seq[0].Node())
+	n, ok := getNameFromNode(node)
 	if !ok {
 		return Singleton(""), nil
 	}
 	return Singleton(n.URI), nil
 }
 
-func callNodeName(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callNodeName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	n, ok := getNameFromNode(seq[0].Node())
+	n, ok := getNameFromNode(node)
 	if !ok {
 		return Singleton(""), nil
 	}
 	return Singleton(n.ExpandedName()), nil
 }
 
-func callRoot(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callRoot(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	root := traverseRoot(seq[0].Node())
+	root := traverseRoot(node)
 	return Singleton(root), nil
 }
 
-func callHasChildren(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
-	if len(args) == 0 {
-		if curr.Item == nil {
-			return nil, ErrContext
-		}
-		args = append(args, Singleton(curr.Item))
-	}
-	seq := args[0]
+func callHasChildren(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
-	if seq[0].Atomic() {
+	node := args.Node(0)
+	if node == nil {
 		return nil, fmt.Errorf("node expected")
 	}
-	children := traverseChild(seq[0].Node())
+	children := traverseChild(node)
 	return Singleton(len(children) > 0), nil
 }
 
-// func callPath(ctx *Context, curr Focus, args []Sequence) (Sequence, error) {
+// func callPath(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 // 	return nil, nil
 // }
 
-func registerBuiltin(name string, minArgs, maxArgs int, useCtxtItem bool, do BuiltinFunc) {
+func registerBuiltin(name string, minArgs, maxArgs int, useCtxItem bool, do BuiltinFunc) {
 	qn := funcName(name)
 	builtins[qn] = Builtin{
 		Name:       name,

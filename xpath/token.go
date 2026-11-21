@@ -10,6 +10,14 @@ const (
 	kwUnion     = "union"
 	kwIntersect = "intersect"
 	kwExcept    = "except"
+	kwIf        = "if"
+	kwFor       = "for"
+	kwLet       = "let"
+	kwSome      = "some"
+	kwEvery     = "every"
+	kwThen      = "then"
+	kwElse      = "else"
+	kwReturn    = "return"
 )
 
 type Token struct {
@@ -85,6 +93,8 @@ func (t Token) String() string {
 		return "<and>"
 	case Or:
 		return "<or>"
+	case Assign:
+		return "<assignment>"
 	case Invalid:
 		return "<invalid>"
 	default:
@@ -126,6 +136,7 @@ const (
 	Ge
 	And
 	Or
+	Assign
 	Invalid
 )
 

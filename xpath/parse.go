@@ -381,7 +381,47 @@ func (p *Parser) parseUnion(left Expr) (Expr, error) {
 	return union(expr), nil
 }
 
+func (p *Parser) parseIf() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseFor() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseLet() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseSome() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseEvery() (Expr, error) {
+	return nil, nil
+}
+
+func (p *Parser) parseExpression() (Expr, error) {
+	switch p.currentLiteral() {
+	case kwIf:
+		return p.parseIf()
+	case kwFor:
+		return p.parseFor()
+	case kwLet:
+		return p.parseLet()
+	case kwSome:
+		return p.parseSome()
+	case kwEvery:
+		return p.parseEvery()
+	default:
+		return nil, fmt.Errorf("%s: unexpected keyword", p.currentLiteral())
+	}
+}
+
 func (p *Parser) parseName() (Expr, error) {
+	if p.isExpression() {
+		return p.parseExpression()
+	}
 	var (
 		st  step
 		nt  nameTest
@@ -544,6 +584,18 @@ func (p *Parser) peekIs(kind rune) bool {
 
 func (p *Parser) is(kind rune) bool {
 	return p.curr.Type == kind
+}
+
+func (p *Parser) isExpression() bool {
+	if !p.is(Name) {
+		return false
+	}
+	switch p.currentLiteral() {
+	case kwIf, kwFor, kwLet, kwSome, kwEvery:
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *Parser) powerOf() int {

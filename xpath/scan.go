@@ -192,6 +192,9 @@ func (s *Scanner) scanDelimiter(tok *Token) {
 		if k := s.peek(); k == s.char {
 			tok.Type = AxisSep
 			s.read()
+		} else if k == '=' {
+			tok.Type = Assign
+			s.read()
 		}
 	case '=':
 		tok.Type = Eq

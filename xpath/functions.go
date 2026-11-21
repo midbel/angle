@@ -173,14 +173,15 @@ func callSubstring(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	}
 	var (
 		offset float64
-		size   float64 = float64(len(str))
+		res    = []rune(str)
+		size   = float64(len(str))
 	)
 	offset, err = getFloatFromSequence(args.Sequence(1))
 	if err != nil {
 		return nil, err
 	}
 	offset -= 1
-	if seq := args.Sequence(2); seq.Empty() {
+	if seq := args.Sequence(2); !seq.Empty() {
 		size, err = getFloatFromSequence(seq)
 		if err != nil {
 			return nil, err
@@ -190,11 +191,11 @@ func callSubstring(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 		size += offset
 		offset = 0
 	}
-	if z := len(str); int(offset+size) >= z {
+	if z := len(res); int(offset+size) >= z {
 		size = float64(z) - offset
 	}
-	str = str[int(offset) : int(offset)+int(size)]
-	return Singleton(str), nil
+	res = res[int(offset) : int(offset)+int(size)]
+	return Singleton(string(res)), nil
 }
 
 func callSubstringBefore(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
@@ -525,7 +526,11 @@ func callMin(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = min(res, x)
+		if i == 0 {
+			res = x
+		} else {
+			res = min(res, x)
+		}
 	}
 	return Singleton(res), nil
 }
@@ -545,7 +550,11 @@ func callMax(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = max(res, x)
+		if i == 0 {
+			res = x
+		} else {
+			res = max(res, x)
+		}
 	}
 	return Singleton(res), nil
 }
@@ -596,6 +605,9 @@ func callName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
+	if seq.Empty() {
+		return Singleton(""), nil
+	}
 	node := args.Node(0)
 	if node == nil {
 		return nil, fmt.Errorf("node expected")
@@ -611,6 +623,9 @@ func callLocalName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
+	}
+	if seq.Empty() {
+		return Singleton(""), nil
 	}
 	node := args.Node(0)
 	if node == nil {
@@ -628,6 +643,9 @@ func callNamespaceUri(ctx *Context, curr Focus, args Arguments) (Sequence, error
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
+	if seq.Empty() {
+		return Singleton(""), nil
+	}
 	node := args.Node(0)
 	if node == nil {
 		return nil, fmt.Errorf("node expected")
@@ -643,6 +661,9 @@ func callNodeName(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	seq := args.Sequence(0)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
+	}
+	if seq.Empty() {
+		return nil, nil
 	}
 	node := args.Node(0)
 	if node == nil {
@@ -660,6 +681,9 @@ func callRoot(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
+	if seq.Empty() {
+		return nil, nil
+	}
 	node := args.Node(0)
 	if node == nil {
 		return nil, fmt.Errorf("node expected")
@@ -673,6 +697,9 @@ func callHasChildren(ctx *Context, curr Focus, args Arguments) (Sequence, error)
 	if seq.Len() > 1 {
 		return nil, ErrSingleton
 	}
+	if seq.Empty() {
+		return Singleton(false), nil
+	}
 	node := args.Node(0)
 	if node == nil {
 		return nil, fmt.Errorf("node expected")
@@ -680,10 +707,6 @@ func callHasChildren(ctx *Context, curr Focus, args Arguments) (Sequence, error)
 	children := traverseChild(node)
 	return Singleton(len(children) > 0), nil
 }
-
-// func callPath(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
-// 	return nil, nil
-// }
 
 func registerBuiltin(name string, minArgs, maxArgs int, useCtxItem bool, do BuiltinFunc) {
 	qn := funcName(name)
@@ -795,5 +818,5 @@ func castToFloat(val any) (float64, error) {
 	default:
 		res = math.NaN()
 	}
-	return res, nil
+	return res, err
 }

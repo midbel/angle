@@ -154,7 +154,7 @@ type Element struct {
 	Attributes []*Attribute
 	Children   []Node
 
-	parent Node
+	parent   Node
 	position int
 }
 
@@ -244,7 +244,7 @@ func (*Element) Type() NodeType {
 
 type Attribute struct {
 	Name
-	Value string
+	Value    string
 	position int
 }
 
@@ -272,8 +272,8 @@ func (*Attribute) Type() NodeType {
 }
 
 type Text struct {
-	Value  string
-	parent Node
+	Value    string
+	parent   Node
 	position int
 }
 
@@ -303,8 +303,8 @@ func (*Text) Type() NodeType {
 }
 
 type Comment struct {
-	Value  string
-	parent Node
+	Value    string
+	parent   Node
 	position int
 }
 
@@ -335,8 +335,8 @@ func (*Comment) Type() NodeType {
 
 type PI struct {
 	Name
-	Data   string
-	parent Node
+	Data     string
+	parent   Node
 	position int
 }
 

@@ -279,63 +279,42 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		var (
-			nodes = traverseChild(node)
-			seq   Sequence
-		)
-		for i := range nodes {
-			it := newNodeItem(nodes[i])
-			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
-			if err != nil {
-				return nil, err
-			}
-			seq = append(seq, res...)
-		}
-		return seq, nil
+		nodes := traverseChild(node)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case DescendantAxis, DescendantOrSelfAxis:
 		node, err := currentNode(curr.Item)
 		if err != nil {
 			return nil, err
 		}
-		var (
-			seq      Sequence
-			traverse = traverseDeep
-		)
+		traverse := traverseDeep
 		if expr.axis == DescendantOrSelfAxis {
 			traverse = traverseDeepAndSelf
 		}
 		nodes := traverse(node, 0)
-		for i := range nodes {
-			it := newNodeItem(nodes[i])
-			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
-			if err != nil {
-				return nil, err
-			}
-			seq = append(seq, res...)
-		}
-		return seq, nil
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case AncestorAxis, AncestorOrSelfAxis:
 		node, err := currentNode(curr.Item)
 		if err != nil {
 			return nil, err
 		}
-		var (
-			nodes = traverseAncestors(node, expr.axis == AncestorOrSelfAxis)
-			seq   Sequence
-		)
-		for i := range nodes {
-			it := newNodeItem(nodes[i])
-			res, err := eval(expr.Expr, curr.Sub(it, len(nodes), i+1), ctx)
-			if err != nil {
-				return nil, err
-			}
-			seq = append(seq, res...)
-		}
-		return seq, nil
+		nodes := traverseAncestors(node, expr.axis == AncestorOrSelfAxis)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case FollowingAxis:
 	case FollowingSiblingAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		nodes := traverseFollowingSiblings(node)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	case PrecedingAxis:
 	case PrecedingSiblingAxis:
+		node, err := currentNode(curr.Item)
+		if err != nil {
+			return nil, err
+		}
+		nodes := traversePrecedingSiblings(node)
+		return createSequenceFromNodes(nodes, expr.Expr, curr, ctx)
 	}
 	return nil, nil
 }
@@ -889,12 +868,61 @@ func currentNode(item Item) (xml.Node, error) {
 	return item.Node(), nil
 }
 
+func createSequenceFromNodes(nodes []xml.Node, expr Expr, curr Focus, ctx *Context) (Sequence, error) {
+	var seq Sequence
+	for i := range nodes {
+		it := newNodeItem(nodes[i])
+		res, err := eval(expr, curr.Sub(it, len(nodes), i+1), ctx)
+		if err != nil {
+			return nil, err
+		}
+		seq = append(seq, res...)
+	}
+	return seq, nil
+}
+
 func traverseAttributes(node xml.Node) []*xml.Attribute {
 	el, ok := node.(*xml.Element)
 	if !ok {
 		return nil
 	}
 	return el.Attributes
+}
+
+func traversePrecedingSiblings(node xml.Node) []xml.Node {
+	parent := node.Parent()
+	if parent == nil {
+		return nil
+	}
+	var children []xml.Node
+	switch n := parent.(type) {
+	case *xml.Document:
+		children = n.Children
+	case *xml.Element:
+		children = n.Children
+	default:
+		return nil
+	}
+	res := slices.Clone(children[:node.Position()])
+	slices.Reverse(res)
+	return res
+}
+
+func traverseFollowingSiblings(node xml.Node) []xml.Node {
+	parent := node.Parent()
+	if parent == nil {
+		return nil
+	}
+	var children []xml.Node
+	switch n := parent.(type) {
+	case *xml.Document:
+		children = n.Children
+	case *xml.Element:
+		children = n.Children
+	default:
+		return nil
+	}
+	return children[node.Position()+1:]
 }
 
 func traverseAncestors(node xml.Node, self bool) []xml.Node {

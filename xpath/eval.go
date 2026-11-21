@@ -46,7 +46,7 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 	case except:
 		seq, err = evalExcept(e, curr, ctx)
 	case list:
-		return evalList(e, curr, ctx)
+		seq, err = evalList(e, curr, ctx)
 	case root:
 		seq, err = evalRoot(e, curr, ctx)
 	case current:
@@ -67,15 +67,14 @@ func eval(expr Expr, curr Focus, ctx *Context) (Sequence, error) {
 		seq, err = evalNumber(e, curr, ctx)
 	case literal:
 		seq, err = evalLiteral(e, curr, ctx)
+	case variable:
+		seq, err = evalVariable(e, curr, ctx)
 	case call:
 		seq, err = evalCall(e, curr, ctx)
 	default:
 		return nil, ErrEval
 	}
-	if err != nil {
-		return nil, err
-	}
-	return clearDuplicates(seq), nil
+	return seq, err
 }
 
 func clearDuplicates(seq Sequence) Sequence {
@@ -123,7 +122,7 @@ func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
 		}
 		seq = append(seq, res...)
 	}
-	return seq, nil
+	return clearDuplicates(seq), nil
 }
 
 func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
@@ -142,7 +141,7 @@ func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
 			seq = append(seq, res...)
 		}
 	}
-	return seq, nil
+	return clearDuplicates(seq), nil
 }
 
 func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
@@ -161,7 +160,7 @@ func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
 			seq = append(seq, res...)
 		}
 	}
-	return seq, nil
+	return clearDuplicates(seq), nil
 }
 
 func evalCall(expr call, curr Focus, ctx *Context) (Sequence, error) {
@@ -315,6 +314,12 @@ func evalStep(expr step, curr Focus, ctx *Context) (Sequence, error) {
 			seq = append(seq, res...)
 		}
 		return seq, nil
+	case AncestorAxis:
+	case AncestorOrSelfAxis:
+	case FollowingAxis:
+	case FollowingSiblingAxis:
+	case PrecedingAxis:
+	case PrecedingSiblingAxis:
 	}
 	return nil, nil
 }
@@ -349,6 +354,9 @@ func evalType(expr typeTest, curr Focus, ctx *Context) (Sequence, error) {
 	var nt xml.NodeType
 	switch expr.Kind {
 	case NodeTypeNode:
+		if curr.Item.Atomic() {
+			return nil, ErrAtomic
+		}
 		return Singleton(curr.Item), nil
 	case NodeTypeElem:
 		nt = xml.ElementNode
@@ -573,6 +581,14 @@ func evalNumber(expr number, curr Focus, ctx *Context) (Sequence, error) {
 
 func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
 	return Singleton(expr.str), nil
+}
+
+func evalVariable(expr variable, curr Focus, ctx *Context) (Sequence, error) {
+	v, err := ctx.ResolveVar(expr.ident)
+	if err != nil {
+		return nil, err
+	}
+	return Singleton(v), nil
 }
 
 func isEq(left, right Sequence) (bool, error) {
@@ -807,9 +823,12 @@ func doCompute(left, right any, do func(left, right float64) (float64, error)) (
 
 func isMatch(seq Sequence, index int) (bool, error) {
 	if seq.Singleton() && seq[0].Atomic() {
-		n, ok := seq[0].Value().(float64)
-		if ok {
+		switch n := seq[0].Value().(type) {
+		case int64:
 			return int(n) == index, nil
+		case float64:
+			return int(n) == index, nil
+		default:
 		}
 	}
 	return effectiveBooleanValue(seq)
@@ -828,6 +847,8 @@ func effectiveBooleanValue(seq Sequence) (bool, error) {
 		switch x := seq[0].Value().(type) {
 		case string:
 			return x != "", nil
+		case int64:
+			return x != 0, nil
 		case float64:
 			return x != 0 && !math.IsNaN(x), nil
 		case bool:

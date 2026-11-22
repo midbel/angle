@@ -467,6 +467,20 @@ func testScanNamePath(t *testing.T) {
 			},
 		},
 		{
+			Query: "foo123",
+			Want: []Token{
+				createToken(Name, "foo123"),
+				createToken(Eof, ""),
+			},
+		},
+		{
+			Query: "foo_bar",
+			Want: []Token{
+				createToken(Name, "foo_bar"),
+				createToken(Eof, ""),
+			},
+		},
+		{
 			Query: "foo/bar",
 			Want: []Token{
 				createToken(Name, "foo"),

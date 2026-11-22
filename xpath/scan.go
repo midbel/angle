@@ -79,7 +79,14 @@ func (s *Scanner) Scan() Token {
 func (s *Scanner) scanLiteral(tok *Token) {
 	quote := s.char
 	s.read()
-	for !s.done() && s.char != quote {
+	for !s.done() {
+		if s.char == quote {
+			if s.peek() == quote {
+				s.read()
+			} else {
+				break
+			}
+		}
 		s.write()
 		s.read()
 	}
@@ -121,15 +128,6 @@ func (s *Scanner) scanName(tok *Token) {
 	}
 	tok.Literal = s.str.String()
 	tok.Type = Name
-	// switch tok.Literal {
-	// case "div":
-	// 	tok.Type = Div
-	// case "and":
-	// 	tok.Type = And
-	// case "or":
-	// 	tok.Type = Or
-	// default:
-	// }
 }
 
 func (s *Scanner) scanVariable(tok *Token) {

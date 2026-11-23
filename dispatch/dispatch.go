@@ -121,7 +121,7 @@ func (r *Reader) OnCloseAny(fn OnElementFunc) {
 	}
 }
 
-func (r *Reader) OnPiOnce(name xml.Name, fn OnTextFunc) {
+func (r *Reader) OnPiOnce(name xml.Name, fn OnPiFunc) {
 	cb := func(r *Reader, pi xml.PI) (Result, error) {
 		res, err := fn(r, pi)
 		return Once | res, err
@@ -361,11 +361,11 @@ func (i *listeners) OnPi(name xml.Name, fn OnPiFunc) {
 	i.onPi[name] = append(i.onPi[name], fn)
 }
 
-func (i *listeners) DetachPI(name xml.PI, at int) {
-	if at < 0 || at >= len(i.onPi[name]) {
+func (i *listeners) DetachPI(pi xml.PI, at int) {
+	if at < 0 || at >= len(i.onPi[pi.Name]) {
 		return
 	}
-	i.onPi[name] = slices.Delete(i.onPi[name], at, at+1)
+	i.onPi[pi.Name] = slices.Delete(i.onPi[pi.Name], at, at+1)
 }
 
 func (i *listeners) OpenAnyFuncs() []OnElementFunc {

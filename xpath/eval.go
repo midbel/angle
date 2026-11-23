@@ -582,6 +582,7 @@ func evalLiteral(expr literal, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalVariable(expr variable, curr Focus, ctx *Context) (Sequence, error) {
+	fmt.Println(expr.ident)
 	v, err := ctx.ResolveVar(expr.ident)
 	if err != nil {
 		return nil, err

@@ -98,25 +98,16 @@ func (c queryCommand) Run(args []string) error {
 		return cli.ErrUsage
 	}
 
-	if c.File != "" {
-		_, err := createContext(c.File)
-		if err != nil {
-			return err
-		}
-	}
-
-	r, err := os.Open(set.Arg(1))
+	ctx, err := c.initContext()
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	doc, err := xml.Decode(r)
+	doc, err := c.decodeFile(set.Arg(1))
 	if err != nil {
 		return err
 	}
 
-	items, err := xpath.Find(set.Arg(0), doc, xpath.NewContext())
+	items, err := xpath.Find(set.Arg(0), doc, ctx)
 	if err != nil {
 		return err
 	}
@@ -132,6 +123,23 @@ func (c queryCommand) Run(args []string) error {
 		}
 	}
 	return nil
+}
+
+func (c queryCommand) decodeFile(file string) (*xml.Document, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	return xml.Decode(r)
+}
+
+func (c queryCommand) initContext() (*xpath.Context, error) {
+	if c.File == "" {
+		return xpath.NewContext(), nil
+	}
+	return createContext(c.File)
 }
 
 var builtinsCmd = cli.Command{

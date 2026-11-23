@@ -57,6 +57,14 @@ func (r *Reader) OnElement(name xml.Name, fn OnElementFunc) {
 	r.OnClose(name, fn)
 }
 
+func (r *Reader) OnAny(fn OnElementFunc) {
+	if fn == nil {
+		return
+	}
+	r.OnOpenAny(fn)
+	r.OnCloseAny(fn)
+}
+
 func (r *Reader) OnOpenOnce(name xml.Name, fn OnElementFunc) {
 	cb := func(r *Reader, el xml.Element) (Result, error) {
 		res, err := fn(r, el)
@@ -69,14 +77,6 @@ func (r *Reader) OnOpen(name xml.Name, fn OnElementFunc) {
 	if i := len(r.stack) - 1; i >= 0 {
 		r.stack[i].OnOpen(name, fn)
 	}
-}
-
-func (r *Reader) OnAny(fn OnElementFunc) {
-	if fn == nil {
-		return
-	}
-	r.OnOpenAny(fn)
-	r.OnCloseAny(fn)
 }
 
 func (r *Reader) OnOpenAnyOnce(fn OnElementFunc) {

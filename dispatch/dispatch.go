@@ -121,6 +121,14 @@ func (r *Reader) OnCloseAny(fn OnElementFunc) {
 	}
 }
 
+func (r *Reader) OnPiOnce(name xml.Name, fn OnTextFunc) {
+	cb := func(r *Reader, pi xml.PI) (Result, error) {
+		res, err := fn(r, pi)
+		return Once | res, err
+	}
+	r.OnPI(name, cb)
+}
+
 func (r *Reader) OnPI(name xml.Name, fn OnPiFunc) {
 	if i := len(r.stack) - 1; i >= 0 {
 		r.stack[i].OnPi(name, fn)
@@ -353,6 +361,13 @@ func (i *listeners) OnPi(name xml.Name, fn OnPiFunc) {
 	i.onPi[name] = append(i.onPi[name], fn)
 }
 
+func (i *listeners) DetachPI(name xml.PI, at int) {
+	if at < 0 || at >= len(i.onPi[name]) {
+		return
+	}
+	i.onPi[name] = slices.Delete(i.onPi[name], at, at+1)
+}
+
 func (i *listeners) OpenAnyFuncs() []OnElementFunc {
 	return slices.Clone(i.onOpenAny)
 }
@@ -362,6 +377,13 @@ func (i *listeners) OnOpenAny(fn OnElementFunc) {
 		return
 	}
 	i.onOpenAny = append(i.onOpenAny, fn)
+}
+
+func (i *listeners) DetachOpenAny(at int) {
+	if at < 0 || at >= len(i.onOpenAny) {
+		return
+	}
+	i.onOpenAny = slices.Delete(i.onOpenAny, at, at+1)
 }
 
 func (i *listeners) CloseAnyFuncs() []OnElementFunc {
@@ -375,6 +397,13 @@ func (i *listeners) OnCloseAny(fn OnElementFunc) {
 	i.onCloseAny = append(i.onCloseAny, fn)
 }
 
+func (i *listeners) DetachCloseAny(at int) {
+	if at < 0 || at >= len(i.onCloseAny) {
+		return
+	}
+	i.onCloseAny = slices.Delete(i.onCloseAny, at, at+1)
+}
+
 func (i *listeners) OpenFuncs(name xml.Name) []OnElementFunc {
 	return slices.Clone(i.onOpen[name])
 }
@@ -386,6 +415,13 @@ func (i *listeners) OnOpen(name xml.Name, fn OnElementFunc) {
 	i.onOpen[name] = append(i.onOpen[name], fn)
 }
 
+func (i *listeners) DetachOpen(name xml.Name, at int) {
+	if at < 0 || at >= len(i.onOpen[name]) {
+		return
+	}
+	i.onOpen[name] = slices.Delete(i.onOpen[name], at, at+1)	
+}
+
 func (i *listeners) CloseFuncs(name xml.Name) []OnElementFunc {
 	return slices.Clone(i.onClose[name])
 }
@@ -395,4 +431,11 @@ func (i *listeners) OnClose(name xml.Name, fn OnElementFunc) {
 		return
 	}
 	i.onClose[name] = append(i.onClose[name], fn)
+}
+
+func (i *listeners) DetachClose(name xml.Name, at int) {
+	if at < 0 || at >= len(i.onClose[name]) {
+		return
+	}	
+	i.onClose[name] = slices.Delete(i.onClose[name], at, at+1)
 }

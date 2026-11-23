@@ -80,11 +80,31 @@ type Builtin struct {
 	Func       BuiltinFunc
 }
 
+func (b Builtin) Standard() bool {
+	return strings.HasPrefix(b.Name, nsPrefixFunc+":")
+}
+
+func (b Builtin) Variadic() bool {
+	return b.MaxArgs < 0
+}
+
 func funcName(name string) qname {
 	return createQName(name, nsPrefixFunc)
 }
 
 var builtins = map[qname]Builtin{}
+
+func Builtins() []Builtin {
+	all := make([]Builtin, 0, len(builtins))
+	for qn, b := range builtins {
+		b.Name = qn.expandedName()
+		all = append(all, b)
+	}
+	slices.SortFunc(all, func(b1, b2 Builtin) int {
+		return strings.Compare(b1.Name, b2.Name)
+	})
+	return all
+}
 
 func init() {
 	registerBuiltin("string", 0, 1, true, callString)
@@ -135,6 +155,7 @@ func init() {
 	registerBuiltin("one-or-more", 1, 1, false, callOneOrMore)
 	registerBuiltin("exactly-one", 1, 1, false, callExactlyOne)
 	registerBuiltin("distinct-values", 1, 2, false, callDistinctValues)
+	registerBuiltin("format-number", 1, 2, false, callFormatNumber)
 }
 
 func callString(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
@@ -400,6 +421,10 @@ func callStringLength(ctx *Context, curr Focus, args Arguments) (Sequence, error
 	}
 	n := utf8.RuneCountInString(str)
 	return Singleton(int64(n)), nil
+}
+
+func callFormatNumber(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
+	return nil, nil
 }
 
 func callNumber(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
@@ -776,7 +801,21 @@ func callExactlyOne(ctx *Context, curr Focus, args Arguments) (Sequence, error) 
 }
 
 func callDistinctValues(ctx *Context, curr Focus, args Arguments) (Sequence, error) {
-	return nil, nil
+	var (
+		seq  = args.Sequence(0)
+		seen = make(map[any]struct{})
+		res  Sequence
+	)
+	for i := range seq {
+		v := seq[i].Value()
+		_, ok := seen[v]
+		if ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		res = append(res, seq[i])
+	}
+	return res, nil
 }
 
 func registerBuiltin(name string, minArgs, maxArgs int, useCtxItem bool, do BuiltinFunc) {

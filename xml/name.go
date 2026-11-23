@@ -1,0 +1,91 @@
+package xml
+
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
+
+type Namespace struct {
+	Prefix string
+	URI    string
+}
+
+func (n Namespace) Zero() bool {
+	return n.Prefix == "" && n.URI == ""
+}
+
+func (n Namespace) Equal(other Namespace) bool {
+	return n.Prefix == other.Prefix && n.URI == other.URI
+}
+
+type Name struct {
+	Local string
+	Namespace
+}
+
+func IsValidName(str string) bool {
+	r, size := utf8.DecodeRuneInString(str)
+	if !IsValidStartNameChar(r) {
+		return false
+	}
+	for _, r := range str[size:] {
+		if !IsValidNameChar(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func NewName(str string) Name {
+	return Name{
+		Local: str,
+	}
+}
+
+func ParseName(str string) (Name, error) {
+	valid := IsValidName(str)
+	if !valid {
+		return Name{}, ErrName
+	}
+	var (
+		name Name
+		ok   bool
+	)
+	name.Prefix, name.Local, ok = strings.Cut(str, ":")
+	if !ok {
+		name.Prefix = ""
+		name.Local = str
+	} else {
+		if name.Prefix == "" || name.Local == "" {
+			return name, ErrName
+		}
+	}
+	return name, nil
+}
+
+func (n Name) Zero() bool {
+	return n.Local == "" && n.Namespace.Zero()
+}
+
+func (n Name) Equal(other Name) bool {
+	return n.Local == other.Local && n.Namespace.Equal(other.Namespace)
+}
+
+func (n Name) LocalName() string {
+	return n.Local
+}
+
+func (n Name) ExpandedName() string {
+	if n.URI == "" {
+		return n.Local
+	}
+	return fmt.Sprintf("%s:%s", n.URI, n.Local)
+}
+
+func (n Name) QualifiedName() string {
+	if n.Prefix == "" {
+		return n.Local
+	}
+	return fmt.Sprintf("%s:%s", n.Prefix, n.Local)
+}

@@ -104,6 +104,23 @@ func createQName(name, prefix string) qname {
 	}
 }
 
+func (q qname) prefix() string {
+	switch q.Uri {
+	case nsUriFunc:
+		return nsPrefixFunc
+	default:
+		return ""
+	}
+}
+
+func (q qname) expandedName() string {
+	prefix := q.prefix()
+	if prefix == "" {
+		return q.Name
+	}
+	return fmt.Sprintf("%s:%s", prefix, q.Name)
+}
+
 type Focus struct {
 	Item
 	Index int

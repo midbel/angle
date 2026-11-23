@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/midbel/angle/xml"
@@ -77,23 +78,33 @@ var queryCmd = cli.Command{
 	Name:    "query",
 	Alias:   []string{"find"},
 	Summary: "",
-	Usage:   "query <expr> <file>",
+	Usage:   "query [-c <config file>] [-d <max depth>] <expr> <file>",
 	Handler: &queryCommand{},
 }
 
 type queryCommand struct {
 	Depth int
+	File  string
 }
 
 func (c queryCommand) Run(args []string) error {
 	set := cli.NewFlagSet("query")
 	set.IntVar(&c.Depth, "d", -1, "depth")
+	set.StringVar(&c.File, "c", "", "configuration file")
 	if err := set.Parse(args); err != nil {
 		return err
 	}
 	if set.NArg() != 2 {
 		return cli.ErrUsage
 	}
+
+	if c.File != "" {
+		_, err := createContext(c.File)
+		if err != nil {
+			return err
+		}
+	}
+
 	r, err := os.Open(set.Arg(1))
 	if err != nil {
 		return err
@@ -121,6 +132,48 @@ func (c queryCommand) Run(args []string) error {
 		}
 	}
 	return nil
+}
+
+var builtinsCmd = cli.Command{
+	Name:    "builtins",
+	Summary: "",
+	Usage:   "builtins",
+	Handler: &helpBuiltinCommand{},
+}
+
+type helpBuiltinCommand struct{}
+
+func (helpBuiltinCommand) Run(args []string) error {
+	set := cli.NewFlagSet("builtins")
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	tbl := cli.Table{
+		Headers: []string{"function", "standard", "context", "variadic", "min-argument(s)", "max-argument(s)"},
+	}
+	for _, b := range xpath.Builtins() {
+		var (
+			minArg string
+			maxArg string
+		)
+		if b.MinArgs >= 0 {
+			minArg = strconv.Itoa(b.MinArgs)
+		}
+		if b.MaxArgs >= 0 {
+			maxArg = strconv.Itoa(b.MaxArgs)
+		}
+		row := []string{
+			b.Name,
+			cli.MarkBool(b.Standard()),
+			cli.MarkBool(b.UseCtxItem),
+			cli.MarkBool(b.Variadic()),
+			minArg,
+			maxArg,
+		}
+		tbl.Rows = append(tbl.Rows, row)
+	}
+	r := cli.NewTableRenderer(cli.Stdout)
+	return r.Render(tbl)
 }
 
 var scanCmd = cli.Command{
@@ -284,11 +337,16 @@ func prepare() *cli.CommandTrie {
 	root.Register(single("format"), &fmtCmd)
 	root.Register(single("tree"), &treeCmd)
 	root.Register(single("inspect"), &inspectCmd)
+	root.Register(multi("help", "xpath-functions"), &builtinsCmd)
 	return root
 }
 
 func single(str string) []string {
 	return []string{str}
+}
+
+func multi(str ...string) []string {
+	return str
 }
 
 type echoHandler struct {

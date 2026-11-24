@@ -27,51 +27,72 @@ func (ps path) String() string {
 
 func (path) expr() {}
 
-type union []Expr
+type union struct {
+	Left  Expr
+	Right Expr
+}
+
+func createUnion(left, right Expr) Expr {
+	return union{
+		Left:  left,
+		Right: right,
+	}
+}
 
 func (us union) String() string {
 	var str strings.Builder
 	str.WriteString("union(")
-	for i := range us {
-		if i > 0 {
-			str.WriteString(", ")
-		}
-		str.WriteString(us[i].String())
-	}
+	str.WriteString(us.Left.String())
+	str.WriteString(", ")
+	str.WriteString(us.Right.String())
 	str.WriteString(")")
 	return str.String()
 }
 
 func (union) expr() {}
 
-type intersect []Expr
+type intersect struct {
+	Left  Expr
+	Right Expr
+}
+
+func createIntersect(left, right Expr) Expr {
+	return intersect{
+		Left:  left,
+		Right: right,
+	}
+}
 
 func (is intersect) String() string {
 	var str strings.Builder
 	str.WriteString("intersect(")
-	for j := range is {
-		if j > 0 {
-			str.WriteString(", ")
-		}
-		str.WriteString(is[j].String())
-	}
+	str.WriteString(is.Left.String())
+	str.WriteString(", ")
+	str.WriteString(is.Right.String())
 	str.WriteString(")")
 	return str.String()
 }
 
 func (intersect) expr() {}
 
-type except []Expr
+type except struct {
+	Left  Expr
+	Right Expr
+}
+
+func createExcept(left, right Expr) Expr {
+	return except{
+		Left:  left,
+		Right: right,
+	}
+}
 
 func (es except) String() string {
 	var str strings.Builder
 	str.WriteString("except(")
-	for i := range es {
-		if i > 0 {
-			str.WriteString(", ")
-		}
-		str.WriteString(es[i].String())
-	}
+	str.WriteString(es.Left.String())
+	str.WriteString(", ")
+	str.WriteString(es.Right.String())
 	str.WriteString(")")
 	return str.String()
 }
@@ -215,6 +236,13 @@ type nameTest struct {
 	Name   string
 }
 
+func createName(prefix, name string) Expr {
+	return nameTest{
+		Prefix: prefix,
+		Name:   name,
+	}
+}
+
 func (n nameTest) String() string {
 	return fmt.Sprintf("name (prefix: %s, name: %s)", n.Prefix, n.Name)
 }
@@ -258,6 +286,12 @@ type literal struct {
 	str string
 }
 
+func createLiteral(str string) Expr {
+	return literal{
+		str: str,
+	}
+}
+
 func (i literal) String() string {
 	return fmt.Sprintf("literal(%s)", i.str)
 }
@@ -268,6 +302,12 @@ type variable struct {
 	ident string
 }
 
+func createVariable(ident string) Expr {
+	return variable{
+		ident: ident,
+	}
+}
+
 func (v variable) String() string {
 	return fmt.Sprintf("variable(%s)", v.ident)
 }
@@ -276,6 +316,12 @@ func (variable) expr() {}
 
 type number struct {
 	value float64
+}
+
+func createNumber(value float64) Expr {
+	return number{
+		value: value,
+	}
 }
 
 func (n number) String() string {
@@ -290,6 +336,14 @@ type binary struct {
 	op    rune
 }
 
+func createBinary(left, right Expr, op rune) Expr {
+	return binary{
+		left:  left,
+		right: right,
+		op:    op,
+	}
+}
+
 func (b binary) String() string {
 	return fmt.Sprintf("binary(left: %s, right: %s, op: %c)", b.left, b.right, b.op)
 }
@@ -299,6 +353,13 @@ func (binary) expr() {}
 type unary struct {
 	right Expr
 	op    rune
+}
+
+func createUnary(expr Expr, op rune) Expr {
+	return unary{
+		right: expr,
+		op:    op,
+	}
 }
 
 func (u unary) String() string {

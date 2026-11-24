@@ -111,54 +111,53 @@ func evalList(expr list, curr Focus, ctx *Context) (Sequence, error) {
 }
 
 func evalUnion(expr union, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
-	for i := range expr {
-		res, err := eval(expr[i], curr, ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err = checkAtomics(res); err != nil {
-			return nil, err
-		}
-		seq = append(seq, res...)
+	seq1, err := eval(expr.Left, curr, ctx)
+	if err != nil {
+		return nil, err
 	}
-	return clearDuplicates(seq), nil
+	seq2, err := eval(expr.Right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	return clearDuplicates(append(seq1, seq2...)), nil
 }
 
 func evalExcept(expr except, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
-	for i := range expr {
-		res, err := eval(expr[i], curr, ctx)
-		if err != nil {
-			return nil, err
-		}
-		if i > 0 {
-			seq, err = exceptNodes(seq, res)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			seq = append(seq, res...)
-		}
+	seq1, err := eval(expr.Left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkAtomics(seq1); err != nil {
+		return nil, err
+	}
+	seq2, err := eval(expr.Right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := checkAtomics(seq2); err != nil {
+		return nil, err
+	}
+	seq, err := exceptNodes(seq1, seq2)
+	if err != nil {
+		return nil, err
 	}
 	return clearDuplicates(seq), nil
 }
 
 func evalIntersect(expr intersect, curr Focus, ctx *Context) (Sequence, error) {
-	var seq Sequence
-	for i := range expr {
-		res, err := eval(expr[i], curr, ctx)
-		if err != nil {
-			return nil, err
-		}
-		if i > 0 {
-			seq, err = intersectNodes(seq, res)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			seq = append(seq, res...)
-		}
+	seq1, err := eval(expr.Left, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+	seq2, err := eval(expr.Right, curr, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	seq, err := intersectNodes(seq1, seq2)
+	if err != nil {
+		return nil, err
 	}
 	return clearDuplicates(seq), nil
 }

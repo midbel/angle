@@ -419,7 +419,7 @@ func (i *listeners) DetachOpen(name xml.Name, at int) {
 	if at < 0 || at >= len(i.onOpen[name]) {
 		return
 	}
-	i.onOpen[name] = slices.Delete(i.onOpen[name], at, at+1)	
+	i.onOpen[name] = slices.Delete(i.onOpen[name], at, at+1)
 }
 
 func (i *listeners) CloseFuncs(name xml.Name) []OnElementFunc {
@@ -436,6 +436,6 @@ func (i *listeners) OnClose(name xml.Name, fn OnElementFunc) {
 func (i *listeners) DetachClose(name xml.Name, at int) {
 	if at < 0 || at >= len(i.onClose[name]) {
 		return
-	}	
+	}
 	i.onClose[name] = slices.Delete(i.onClose[name], at, at+1)
 }

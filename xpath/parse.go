@@ -227,9 +227,7 @@ func (p *Parser) parseGroup() (Expr, error) {
 }
 
 func (p *Parser) parseVariable() (Expr, error) {
-	v := variable{
-		ident: p.currentLiteral(),
-	}
+	v := createVariable(p.currentLiteral())
 	p.next()
 	return v, nil
 }
@@ -239,17 +237,13 @@ func (p *Parser) parseNumber() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	n := number{
-		value: v,
-	}
+	n := createNumber(v)
 	p.next()
 	return n, nil
 }
 
 func (p *Parser) parseLiteral() (Expr, error) {
-	i := literal{
-		str: p.currentLiteral(),
-	}
+	i := createLiteral(p.currentLiteral())
 	p.next()
 	return i, nil
 }
@@ -342,45 +336,30 @@ func (p *Parser) parseList(left Expr) (Expr, error) {
 }
 
 func (p *Parser) parseExcept(left Expr) (Expr, error) {
-	var expr []Expr
-	expr = append(expr, left)
-	for p.is(Name) && p.currentLiteral() == kwExcept {
-		p.next()
-		e, err := p.startExpr(powSet)
-		if err != nil {
-			return nil, err
-		}
-		expr = append(expr, e)
+	p.next()
+	right, err := p.startExpr(powSet)
+	if err != nil {
+		return nil, err
 	}
-	return except(expr), nil
+	return createExcept(left, right), nil
 }
 
 func (p *Parser) parseIntersect(left Expr) (Expr, error) {
-	var expr []Expr
-	expr = append(expr, left)
-	for p.is(Name) && p.currentLiteral() == kwIntersect {
-		p.next()
-		e, err := p.startExpr(powSet)
-		if err != nil {
-			return nil, err
-		}
-		expr = append(expr, e)
+	p.next()
+	right, err := p.startExpr(powSet)
+	if err != nil {
+		return nil, err
 	}
-	return intersect(expr), nil
+	return createIntersect(left, right), nil
 }
 
 func (p *Parser) parseUnion(left Expr) (Expr, error) {
-	var expr []Expr
-	expr = append(expr, left)
-	for p.is(Pipe) || (p.is(Name) && p.currentLiteral() == kwUnion) {
-		p.next()
-		e, err := p.startExpr(powUnion)
-		if err != nil {
-			return nil, err
-		}
-		expr = append(expr, e)
+	p.next()
+	right, err := p.startExpr(powUnion)
+	if err != nil {
+		return nil, err
 	}
-	return union(expr), nil
+	return createUnion(left, right), nil
 }
 
 func (p *Parser) parseIf() (Expr, error) {
@@ -421,9 +400,6 @@ func (p *Parser) parseExpression() (Expr, error) {
 }
 
 func (p *Parser) parseName() (Expr, error) {
-	if p.isExpression() {
-		return p.parseExpression()
-	}
 	var (
 		st  step
 		nt  nameTest

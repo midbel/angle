@@ -40,6 +40,113 @@ type AstTestCase struct {
 func TestParserAst(t *testing.T) {
 	t.Run("associativity", testParserAssociativity)
 	t.Run("set", testParserSet)
+	t.Run("paths", testParsePaths)
+	t.Run("call", testParseCalls)
+}
+
+func testParseCalls(t *testing.T) {
+	tests := []AstTestCase{}
+	testAstParser(t, tests)
+}
+
+func testParsePaths(t *testing.T) {
+	tests := []AstTestCase{
+		{
+			Query: "/",
+			Want:  createRoot(),
+		},
+		{
+			Query: "/foo",
+			Want: path{
+				createRoot(),
+				axisStep(
+					ChildAxis,
+					createName("", "foo"),
+				),
+			},
+		},
+		{
+			Query: "foo",
+			Want: axisStep(
+				ChildAxis,
+				createName("", "foo"),
+			),
+		},
+		{
+			Query: ".",
+			Want:  current{},
+		},
+		{
+			Query: "..",
+			Want:  parentStep(),
+		},
+		{
+			Query: "/foo[@id]",
+			Want: path{
+				createRoot(),
+				createPredicate(
+					axisStep(
+						ChildAxis,
+						createName("", "foo"),
+					),
+					attributeStep(
+						createName("", "id"),
+					),
+				),
+			},
+		},
+		{
+			Query: "/foo[@id = $bar]",
+			Want: path{
+				createRoot(),
+				createPredicate(
+					axisStep(
+						ChildAxis,
+						createName("", "foo"),
+					),
+					createBinary(
+						attributeStep(
+							createName("", "id"),
+						),
+						createVariable("bar"),
+						Eq,
+					),
+				),
+			},
+		},
+		{
+			Query: "/*:foo",
+			Want: path{
+				createRoot(),
+				axisStep(
+					ChildAxis,
+					createName("*", "foo"),
+				),
+			},
+		},
+		{
+			Query: "//foo:bar",
+			Want: path{
+				createRoot(),
+				descendantOrSelfStep(),
+				axisStep(
+					ChildAxis,
+					createName("foo", "bar"),
+				),
+			},
+		},
+		{
+			Query: "/self::bar",
+			Want: path{
+				createRoot(),
+				axisStep(
+					SelfAxis,
+					createName("", "bar"),
+				),
+			},
+		},
+	}
+	testAstParser(t, tests)
 }
 
 func testParserSet(t *testing.T) {

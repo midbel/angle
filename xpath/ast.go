@@ -12,6 +12,10 @@ type Expr interface {
 
 type path []Expr
 
+func createPath(ps ...Expr) Expr {
+	return path(ps)
+}
+
 func (ps path) String() string {
 	var str strings.Builder
 	str.WriteString("path(")
@@ -100,6 +104,10 @@ func (es except) String() string {
 func (except) expr() {}
 
 type list []Expr
+
+func createList(is ...Expr) Expr {
+	return list(is)
+}
 
 func (is list) String() string {
 	var str strings.Builder
@@ -382,6 +390,13 @@ func (unary) expr() {}
 type assign struct {
 	Ident string
 	Expr  Expr
+}
+
+func createAssignment(ident string, expr Expr) assign {
+	return assign{
+		Ident: ident,
+		Expr: expr,
+	}
 }
 
 type some struct{}

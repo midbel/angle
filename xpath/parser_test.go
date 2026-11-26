@@ -47,48 +47,41 @@ func TestParserAst(t *testing.T) {
 	t.Run("let", testParseLet)
 }
 
-func testParseLet(t *testing.T) {
+func testParseIf(t *testing.T) {
 	tests := []AstTestCase{}
 	testAstParser(t, tests)
 }
 
-func testParseIf(t *testing.T) {
+func testParseLet(t *testing.T) {
 	tests := []AstTestCase{
 		{
 			Query: "let $a := 1 return /foo",
 			Want: let{
 				Values: []assign{
-					{
-						Ident: "a",
-						Expr:  createNumber(1),
-					},
+					createAssignment("a", createNumber(1)),
 				},
-				Body: list{
+				Body: createPath(
 					createRoot(),
 					axisStep(ChildAxis, createName("", "foo")),
-				},
+				),
 			},
 		},
 		{
 			Query: "let $a := 1, $b := /bar return /foo",
 			Want: let{
 				Values: []assign{
-					{
-						Ident: "a",
-						Expr:  createNumber(1),
-					},
-					{
-						Ident: "b",
-						Expr: list{
+					createAssignment("a", createNumber(1)),
+					createAssignment("b",
+						createPath(
 							createRoot(),
 							axisStep(ChildAxis, createName("", "bar")),
-						},
-					},
+						),
+					),
 				},
-				Body: list{
+				Body: createPath(
 					createRoot(),
 					axisStep(ChildAxis, createName("", "foo")),
-				},
+				),
 			},
 		},
 	}
@@ -101,13 +94,12 @@ func testParseLoop(t *testing.T) {
 			Query: "for $a in (1, 2) return /foo",
 			Want: loop{
 				Values: []assign{
-					{
-						Ident: "a",
-						Expr: list{
+					createAssignment("a",
+						createList(
 							createNumber(1),
 							createNumber(2),
-						},
-					},
+						),
+					),
 				},
 				Body: path{
 					createRoot(),
@@ -119,22 +111,18 @@ func testParseLoop(t *testing.T) {
 			Query: "for $a in (1, 2), $b in / return /foo",
 			Want: loop{
 				Values: []assign{
-					{
-						Ident: "a",
-						Expr: list{
+					createAssignment("a",
+						createList(
 							createNumber(1),
 							createNumber(2),
-						},
-					},
-					{
-						Ident: "b",
-						Expr:  createRoot(),
-					},
+						),
+					),
+					createAssignment("b", createRoot()),
 				},
-				Body: path{
+				Body: createPath(
 					createRoot(),
 					axisStep(ChildAxis, createName("", "foo")),
-				},
+				),
 			},
 		},
 	}

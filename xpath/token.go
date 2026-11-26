@@ -19,6 +19,8 @@ const (
 	kwElse      = "else"
 	kwReturn    = "return"
 	kwIs        = "is"
+	kwIn        = "in"
+	kwSatisfies = "satisfies"
 )
 
 type Token struct {

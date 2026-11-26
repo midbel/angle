@@ -118,6 +118,10 @@ func (list) expr() {}
 
 type root struct{}
 
+func createRoot() Expr {
+	return root{}
+}
+
 func (root) String() string {
 	return "root"
 }
@@ -254,6 +258,13 @@ type predicate struct {
 	Check Expr
 }
 
+func createPredicate(expr, check Expr) Expr {
+	return predicate{
+		Expr:  expr,
+		Check: check,
+	}
+}
+
 func (p predicate) String() string {
 	return fmt.Sprintf("predicate(expr: %s, check: %s)", p.Expr, p.Check)
 }
@@ -368,6 +379,11 @@ func (u unary) String() string {
 
 func (unary) expr() {}
 
+type assign struct {
+	Ident string
+	Expr  Expr
+}
+
 type some struct{}
 
 func (s some) String() string {
@@ -384,26 +400,70 @@ func (e every) String() string {
 
 func (every) expr() {}
 
-type let struct{}
+type let struct {
+	Values []assign
+	Body   Expr
+}
 
 func (e let) String() string {
-	return "let"
+	var str strings.Builder
+	str.WriteString("let(assignment: ")
+	for i := range e.Values {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(e.Values[i].Ident)
+		str.WriteString("=")
+		str.WriteString(e.Values[i].Expr.String())
+	}
+	str.WriteString(", body: ")
+	str.WriteString(e.Body.String())
+	str.WriteString(")")
+	return str.String()
 }
 
 func (let) expr() {}
 
-type conditional struct{}
+type conditional struct {
+	Test Expr
+	Csq  Expr
+	Alt  Expr
+}
 
 func (c conditional) String() string {
-	return "if"
+	var str strings.Builder
+	str.WriteString("if(test:")
+	str.WriteString(c.Test.String())
+	str.WriteString(", csq: ")
+	str.WriteString(c.Csq.String())
+	str.WriteString(", alt: ")
+	str.WriteString(c.Alt.String())
+	str.WriteString(")")
+	return str.String()
 }
 
 func (conditional) expr() {}
 
-type loop struct{}
+type loop struct {
+	Values []assign
+	Body   Expr
+}
 
 func (o loop) String() string {
-	return "for"
+	var str strings.Builder
+	str.WriteString("for(clause: ")
+	for i := range o.Values {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(o.Values[i].Ident)
+		str.WriteString("=")
+		str.WriteString(o.Values[i].Expr.String())
+	}
+	str.WriteString(", body: ")
+	str.WriteString(o.Body.String())
+	str.WriteString(")")
+	return str.String()
 }
 
 func (loop) expr() {}

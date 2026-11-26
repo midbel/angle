@@ -113,6 +113,21 @@ func (p *Parser) startExpr(pow int) (Expr, error) {
 }
 
 func (p *Parser) getPrefixFn() (func() (Expr, error), error) {
+	if p.is(Name) && p.isReserved() {
+		switch p.currentLiteral() {
+		case kwIf:
+			return p.parseIf, nil
+		case kwLet:
+			return p.parseLet, nil
+		case kwFor:
+			return p.parseFor, nil
+		case kwSome:
+			return p.parseSome, nil
+		case kwEvery:
+			return p.parseEvery, nil
+		default:
+		}
+	}
 	fn, ok := p.prefix[p.curr.Type]
 	if !ok {
 		return nil, fmt.Errorf("unsupported prefix operator")
@@ -294,7 +309,7 @@ func (p *Parser) parsePredicate(left Expr) (Expr, error) {
 }
 
 func (p *Parser) parseRoot() (Expr, error) {
-	var r root
+	r := createRoot()
 	if p.peekIs(Eof) {
 		p.next()
 		return r, nil
@@ -363,22 +378,123 @@ func (p *Parser) parseUnion(left Expr) (Expr, error) {
 }
 
 func (p *Parser) parseIf() (Expr, error) {
-	return nil, nil
+	p.next()
+	if !p.is(BegGrp) {
+		return nil, fmt.Errorf("invalid syntax, expected ( after if")
+	}
+	test, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(Name) && p.currentLiteral() != kwThen {
+		return nil, fmt.Errorf("invalid syntax, expected \"then\" keyword")
+	}
+	p.next()
+	csq, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	if !p.is(Name) && p.currentLiteral() != kwElse {
+		return nil, fmt.Errorf("invalid syntax, expected \"else\" keyword")
+	}
+	p.next()
+	alt, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	cond := conditional{
+		Test: test,
+		Csq:  csq,
+		Alt:  alt,
+	}
+	return cond, nil
 }
 
 func (p *Parser) parseFor() (Expr, error) {
-	return nil, nil
+	p.next()
+	var expr loop
+	for !p.done() {
+		if !p.is(Variable) {
+			return nil, fmt.Errorf("variable expected")
+		}
+		var (
+			id  assign
+			err error
+		)
+		id.Ident = p.currentLiteral()
+		p.next()
+		if !p.is(Name) && p.currentLiteral() != kwIn {
+			return nil, fmt.Errorf("invalid syntax, expected \"in\" keyword")
+		}
+		p.next()
+		id.Expr, err = p.startExpr(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		expr.Values = append(expr.Values, id)
+		if !p.is(Comma) {
+			break
+		}
+		p.next()
+	}
+	if !p.is(Name) && p.currentLiteral() != kwReturn {
+		return nil, fmt.Errorf("invalid syntax, expected \"return\" keyword")
+	}
+	p.next()
+	body, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	expr.Body = body
+	return expr, nil
 }
 
 func (p *Parser) parseLet() (Expr, error) {
-	return nil, nil
+	p.next()
+	var expr let
+	for !p.done() {
+		if !p.is(Variable) {
+			return nil, fmt.Errorf("variable expected")
+		}
+		var (
+			id  assign
+			err error
+		)
+		id.Ident = p.currentLiteral()
+		p.next()
+		if !p.is(Assign) {
+			return nil, fmt.Errorf("invalid syntax, expected \"in\" keyword")
+		}
+		p.next()
+		id.Expr, err = p.startExpr(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		expr.Values = append(expr.Values, id)
+		if !p.is(Comma) {
+			break
+		}
+		p.next()
+	}
+	if !p.is(Name) && p.currentLiteral() != kwReturn {
+		return nil, fmt.Errorf("invalid syntax, expected \"return\" keyword")
+	}
+	p.next()
+	body, err := p.startExpr(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	expr.Body = body
+	return expr, nil
 }
 
 func (p *Parser) parseSome() (Expr, error) {
+	p.next()
 	return nil, nil
 }
 
 func (p *Parser) parseEvery() (Expr, error) {
+	p.next()
 	return nil, nil
 }
 
@@ -564,7 +680,7 @@ func (p *Parser) is(kind rune) bool {
 	return p.curr.Type == kind
 }
 
-func (p *Parser) isExpression() bool {
+func (p *Parser) isReserved() bool {
 	if !p.is(Name) {
 		return false
 	}

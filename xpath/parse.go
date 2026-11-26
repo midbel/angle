@@ -463,7 +463,7 @@ func (p *Parser) parseLet() (Expr, error) {
 		id.Ident = p.currentLiteral()
 		p.next()
 		if !p.is(Assign) {
-			return nil, fmt.Errorf("invalid syntax, expected \"in\" keyword")
+			return nil, fmt.Errorf("invalid syntax, expected assignment operator")
 		}
 		p.next()
 		id.Expr, err = p.startExpr(powLowest)

@@ -42,6 +42,103 @@ func TestParserAst(t *testing.T) {
 	t.Run("set", testParserSet)
 	t.Run("paths", testParsePaths)
 	t.Run("call", testParseCalls)
+	t.Run("loop", testParseLoop)
+	t.Run("if", testParseIf)
+	t.Run("let", testParseLet)
+}
+
+func testParseLet(t *testing.T) {
+	tests := []AstTestCase{}
+	testAstParser(t, tests)
+}
+
+func testParseIf(t *testing.T) {
+	tests := []AstTestCase{
+		{
+			Query: "let $a := 1 return /foo",
+			Want: let{
+				Values: []assign{
+					{
+						Ident: "a",
+						Expr:  createNumber(1),
+					},
+				},
+				Body: list{
+					createRoot(),
+					axisStep(ChildAxis, createName("", "foo")),
+				},
+			},
+		},
+		{
+			Query: "let $a := 1, $b := /bar return /foo",
+			Want: let{
+				Values: []assign{
+					{
+						Ident: "a",
+						Expr:  createNumber(1),
+					},
+					{
+						Ident: "b",
+						Expr: list{
+							createRoot(),
+							axisStep(ChildAxis, createName("", "bar")),
+						},
+					},
+				},
+				Body: list{
+					createRoot(),
+					axisStep(ChildAxis, createName("", "foo")),
+				},
+			},
+		},
+	}
+	testAstParser(t, tests)
+}
+
+func testParseLoop(t *testing.T) {
+	tests := []AstTestCase{
+		{
+			Query: "for $a in (1, 2) return /foo",
+			Want: loop{
+				Values: []assign{
+					{
+						Ident: "a",
+						Expr: list{
+							createNumber(1),
+							createNumber(2),
+						},
+					},
+				},
+				Body: path{
+					createRoot(),
+					axisStep(ChildAxis, createName("", "foo")),
+				},
+			},
+		},
+		{
+			Query: "for $a in (1, 2), $b in / return /foo",
+			Want: loop{
+				Values: []assign{
+					{
+						Ident: "a",
+						Expr: list{
+							createNumber(1),
+							createNumber(2),
+						},
+					},
+					{
+						Ident: "b",
+						Expr:  createRoot(),
+					},
+				},
+				Body: path{
+					createRoot(),
+					axisStep(ChildAxis, createName("", "foo")),
+				},
+			},
+		},
+	}
+	testAstParser(t, tests)
 }
 
 func testParseCalls(t *testing.T) {

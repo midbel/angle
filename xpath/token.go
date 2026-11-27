@@ -151,7 +151,7 @@ const (
 
 const (
 	powLowest int = iota
-	powList       // comma
+	// powList       // comma
 	powOr
 	powAnd
 	powEq
@@ -188,5 +188,4 @@ var bindings = map[rune]int{
 	Pipe:   powUnion,
 	Slash:  powPath,
 	Deep:   powPath,
-	Comma:  powList,
 }

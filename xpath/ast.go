@@ -256,7 +256,7 @@ func createName(prefix, name string) Expr {
 }
 
 func (n nameTest) String() string {
-	return fmt.Sprintf("name (prefix: %s, name: %s)", n.Prefix, n.Name)
+	return fmt.Sprintf("name(prefix: %s, name: %s)", n.Prefix, n.Name)
 }
 
 func (nameTest) expr() {}
@@ -395,7 +395,7 @@ type assign struct {
 func createAssignment(ident string, expr Expr) assign {
 	return assign{
 		Ident: ident,
-		Expr: expr,
+		Expr:  expr,
 	}
 }
 

@@ -230,15 +230,26 @@ func (p *Parser) parseCall(left Expr) (Expr, error) {
 
 func (p *Parser) parseGroup() (Expr, error) {
 	p.next()
-	expr, err := p.startExpr(powLowest)
-	if err != nil {
-		return nil, err
+	var expr []Expr
+	for !p.done() && !p.is(EndGrp) {
+		e, err := p.startExpr(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		expr = append(expr, e)
+		if !p.is(Comma) {
+			break
+		}
+		p.next()
 	}
 	if !p.is(EndGrp) {
 		return nil, fmt.Errorf("group: %s", p.unexpectedToken())
 	}
 	p.next()
-	return expr, nil
+	if len(expr) == 1 {
+		return expr[0], nil
+	}
+	return createList(expr...), nil
 }
 
 func (p *Parser) parseVariable() (Expr, error) {
@@ -624,7 +635,7 @@ func (p *Parser) parseAxis() (Axis, error) {
 func (p *Parser) parseArgs() ([]Expr, error) {
 	var list []Expr
 	for !p.done() && !p.is(EndGrp) {
-		a, err := p.startExpr(powList)
+		a, err := p.startExpr(powLowest)
 		if err != nil {
 			return nil, err
 		}

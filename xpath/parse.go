@@ -509,23 +509,6 @@ func (p *Parser) parseEvery() (Expr, error) {
 	return nil, nil
 }
 
-func (p *Parser) parseExpression() (Expr, error) {
-	switch p.currentLiteral() {
-	case kwIf:
-		return p.parseIf()
-	case kwFor:
-		return p.parseFor()
-	case kwLet:
-		return p.parseLet()
-	case kwSome:
-		return p.parseSome()
-	case kwEvery:
-		return p.parseEvery()
-	default:
-		return nil, fmt.Errorf("%s: unexpected keyword", p.currentLiteral())
-	}
-}
-
 func (p *Parser) parseName() (Expr, error) {
 	var (
 		st  step

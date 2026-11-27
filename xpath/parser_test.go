@@ -48,7 +48,26 @@ func TestParserAst(t *testing.T) {
 }
 
 func testParseIf(t *testing.T) {
-	tests := []AstTestCase{}
+	tests := []AstTestCase{
+		{
+			Query: "if (1 = 1) then /foo else /bar",
+			Want: conditional{
+				Test: createBinary(
+					createNumber(1),
+					createNumber(1),
+					Eq,
+				),
+				Csq: createPath(
+					createRoot(),
+					axisStep(ChildAxis, createName("", "foo")),
+				),
+				Alt: createPath(
+					createRoot(),
+					axisStep(ChildAxis, createName("", "bar")),
+				),
+			},
+		},
+	}
 	testAstParser(t, tests)
 }
 

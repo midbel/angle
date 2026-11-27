@@ -658,14 +658,6 @@ func (p *Parser) currentLiteral() string {
 	return p.curr.Literal
 }
 
-func (p *Parser) endOfExpr() bool {
-	return p.done() || p.is(Comma) || p.is(Pipe) || p.is(EndGrp)
-}
-
-func (p *Parser) peekEndOfExpr() bool {
-	return p.peekIs(Eof) || p.peekIs(Comma) || p.peekIs(Pipe) || p.peekIs(EndGrp)
-}
-
 func (p *Parser) peekIs(kind rune) bool {
 	return p.peek.Type == kind
 }

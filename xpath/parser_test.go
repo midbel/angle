@@ -177,6 +177,22 @@ func testParsePaths(t *testing.T) {
 			),
 		},
 		{
+			Query: "@foo",
+			Want: attributeStep(createName("", "foo")),
+		},
+		{
+			Query: "@*",
+			Want: attributeStep(createName("", "*")),
+		},
+		{
+			Query: "@*:foo",
+			Want: attributeStep(createName("*", "foo")),
+		},
+		{
+			Query: "@foo:*",
+			Want: attributeStep(createName("foo", "*")),
+		},
+		{
 			Query: ".",
 			Want:  current{},
 		},
@@ -225,6 +241,26 @@ func testParsePaths(t *testing.T) {
 				axisStep(
 					ChildAxis,
 					createName("*", "foo"),
+				),
+			},
+		},
+		{
+			Query: "/foo:*",
+			Want: path{
+				createRoot(),
+				axisStep(
+					ChildAxis,
+					createName("foo", "*"),
+				),
+			},
+		},
+		{
+			Query: "/*:*",
+			Want: path{
+				createRoot(),
+				axisStep(
+					ChildAxis,
+					createName("*", "*"),
 				),
 			},
 		},
